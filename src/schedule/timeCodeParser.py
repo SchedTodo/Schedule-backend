@@ -1,7 +1,7 @@
 from dateutil import tz
 from datetime import datetime
 
-from dateutil.rrule import DAILY, WEEKLY, MONTHLY, YEARLY
+from dateutil.rrule import DAILY, WEEKLY, MONTHLY, YEARLY, weekdays
 
 from .timeCodeParserTypes import (EventType, DateRangeObject, TimeRangeObject, TimeUnit, TimeRange, FreqObject, ByObject,
                                   TimeCodeLex, TimeCodeSem, TimeCodeParseResult, TimeCodeDao, DateUnit)
@@ -147,4 +147,29 @@ def parseFreq(freqCode: str) -> FreqObject:
         raise ValueError(f'invalid freq: {freq}')
     res.freq = rruleFreq
 
+    return res
+
+
+def getWeekdayOffset() -> int:
+    weekdays = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
+    return weekdays.index(getSettingsByPath('rrule.wkst'))
+
+
+def parseBy(byCode: str) -> ByObject:
+    bys = ['month', 'weekno', 'yearday', 'monthday', 'day', 'setpos']
+    res = ByObject()
+    for by in bys:
+        index = byCode.find(by)
+        if index != -1:
+            value = byCode[index + len(by) + 1:byCode.find(']', index)]
+            if by != 'day':
+                res.__setattr__(f'by{by}', list(map(int, value.split(','))))
+            else:
+                choices = list(map(int, value.split(',')))
+                offset = getWeekdayOffset()
+                byweekday = list(map(lambda choice: weekdays[choice - 1 + offset], choices))
+                if byweekday[0] is not None and len(byweekday) > 1:
+                    res.byweekday = byweekday
+                else:
+                    raise ValueError(f'invalid byday: {value}')
     return res

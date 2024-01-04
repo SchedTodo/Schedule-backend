@@ -140,15 +140,17 @@ class FreqObject:
 
 class ByObject:
     bymonth: list[int] | None
+    byweekday: list[weekday] | None
     byweekno: list[int] | None
     byyearday: list[int] | None
     bymonthday: list[int] | None
     byday: list[weekday] | None
     bysetpos: list[int] | None
 
-    def __init__(self, bymonth: list[int] | None = None, byweekno: list[int] | None = None, byyearday: list[int] | None = None,
+    def __init__(self, bymonth: list[int] | None = None, byweekday: list[weekday] | None = None, byweekno: list[int] | None = None, byyearday: list[int] | None = None,
                     bymonthday: list[int] | None = None, byday: list[weekday] | None = None, bysetpos: list[int] | None = None):
             self.bymonth = bymonth
+            self.byweekday = byweekday
             self.byweekno = byweekno
             self.byyearday = byyearday
             self.bymonthday = bymonthday
@@ -158,13 +160,14 @@ class ByObject:
     def __eq__(self, other):
         if not isinstance(other, ByObject):
             return False
-        return self.bymonth == other.bymonth and self.byweekno == other.byweekno and self.byyearday == other.byyearday and self.bymonthday == other.bymonthday and self.byday == other.byday and self.bysetpos == other.bysetpos
+        return self.bymonth == other.bymonth and self.byweekday == other.byweekday and self.byweekno == other.byweekno and self.byyearday == other.byyearday and \
+            self.bymonthday == other.bymonthday and self.byday == other.byday and self.bysetpos == other.bysetpos
 
     def __str__(self):
-        return f'{self.bymonth}-{self.byweekno}-{self.byyearday}-{self.bymonthday}-{self.byday}-{self.bysetpos}'
+        return f'{self.bymonth}-{self.byweekday}-{self.byweekno}-{self.byyearday}-{self.bymonthday}-{self.byday}-{self.bysetpos}'
 
     def __repr__(self):
-        return f'ByObject({self.bymonth}, {self.byweekno}, {self.byyearday}, {self.bymonthday}, {self.byday}, {self.bysetpos})'
+        return f'ByObject({self.bymonth}, {self.byweekday}, {self.byweekno}, {self.byyearday}, {self.bymonthday}, {self.byday}, {self.bysetpos})'
 
 
 class TimeCodeLex:
