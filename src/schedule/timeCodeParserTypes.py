@@ -86,7 +86,7 @@ class TimeRangeObject:
         return self.start == other.start and self.end == other.end and self.startMark == other.startMark and self.endMark == other.endMark
 
     def __str__(self):
-        return f'{str(self.start)}-{str(self.end)}' # TODO time with mark
+        return f'{str(self.start)}-{str(self.end)}'  # TODO time with mark
 
     def __repr__(self):
         return f'TimeRangeObject({self.start}, {self.end}, {self.startMark}, {self.endMark})'
@@ -110,7 +110,7 @@ class TimeRange:
         return self.start == other.start and self.end == other.end and self.startMark == other.startMark and self.endMark == other.endMark
 
     def __str__(self):
-        return f'{self.start}-{self.end}' # TODO time with mark
+        return f'{self.start}-{self.end}'  # TODO time with mark
 
     def __repr__(self):
         return f'TimeRange({self.start}, {self.end}, {self.startMark}, {self.endMark})'

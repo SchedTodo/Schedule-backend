@@ -1,5 +1,8 @@
 from dateutil import tz
 from datetime import datetime
+
+from dateutil.rrule import DAILY, WEEKLY, MONTHLY, YEARLY
+
 from .timeCodeParserTypes import (EventType, DateRangeObject, TimeRangeObject, TimeUnit, TimeRange, FreqObject, ByObject,
                                   TimeCodeLex, TimeCodeSem, TimeCodeParseResult, TimeCodeDao, DateUnit)
 from .userSettings import getSettingsByPath
@@ -99,3 +102,49 @@ def parseTimeRange(timeRange: str) -> TimeRangeObject:
     res.endMark = bin(endMark)[2:].zfill(2)
     return res
 
+
+def parseFreq(freqCode: str) -> FreqObject:
+    res = FreqObject()
+    freq: str
+    if ',' in freqCode:
+        _freq, *args = freqCode.split(',')
+        freq = _freq
+        for arg in args:
+            if arg[0] == 'i':
+                # 是 interval
+                try:
+                    interval = int(arg[1:])
+                except ValueError:
+                    raise ValueError(f'invalid interval: {arg}')
+                if interval < 0:
+                    raise ValueError(f'invalid interval: {arg}')
+                res.interval = interval
+            elif arg[0] == 'c':
+                # 是 count
+                try:
+                    count = int(arg[1:])
+                except ValueError:
+                    raise ValueError(f'invalid count: {arg}')
+                if count < 0:
+                    raise ValueError(f'invalid count: {arg}')
+                res.count = count
+            else:
+                raise ValueError(f'invalid option: {args}')
+    else:
+        # 是 freq
+        freq = freqCode
+
+    rruleFreq: int
+    if freq == 'daily':
+        rruleFreq = DAILY
+    elif freq == 'weekly':
+        rruleFreq = WEEKLY
+    elif freq == 'monthly':
+        rruleFreq = MONTHLY
+    elif freq == 'yearly':
+        rruleFreq = YEARLY
+    else:
+        raise ValueError(f'invalid freq: {freq}')
+    res.freq = rruleFreq
+
+    return res

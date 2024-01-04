@@ -1,7 +1,8 @@
 from datetime import datetime
 
+from dateutil.rrule import rrule, DAILY, MONTHLY, YEARLY, WEEKLY, MO, TU, WE, TH, FR, SA, SU, weekday
 from django.test import TestCase
-from .timeCodeParser import parseDateRange, parseTimeRange
+from .timeCodeParser import parseDateRange, parseTimeRange, parseFreq
 from .timeCodeParserTypes import (EventType, DateRangeObject, TimeRangeObject, TimeUnit, TimeRange, FreqObject, ByObject,
                                   TimeCodeLex, TimeCodeSem, TimeCodeParseResult, TimeCodeDao, DateUnit)
 
@@ -53,3 +54,18 @@ class ParseTimeTest(TestCase):
 
     def test_parseTimeRangeAllUnknown(self):
         self.assertRaises(ValueError, parseTimeRange, '?:?-?:?')
+
+
+class ParseFreqTest(TestCase):
+    def test_parseFreq(self):
+        self.assertEqual(parseFreq('daily'), FreqObject(freq=DAILY))
+
+    def test_parseFreqWithInterval(self):
+        self.assertEqual(parseFreq('weekly,i2'), FreqObject(freq=WEEKLY, interval=2))
+
+    def test_parseFreqWithCount(self):
+        self.assertEqual(parseFreq('monthly,c2'), FreqObject(freq=MONTHLY, count=2))
+
+    def test_parseFreqWithIntervalAndCount(self):
+        self.assertEqual(parseFreq('daily,i10,c20'), FreqObject(freq=DAILY, interval=10, count=20))
+        self.assertEqual(parseFreq('yearly,c0,i1'), FreqObject(freq=YEARLY, interval=1, count=0))
