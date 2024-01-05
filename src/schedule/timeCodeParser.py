@@ -1,11 +1,18 @@
+import re
+
+import dateutil
 from dateutil import tz
+from dateutil.relativedelta import relativedelta
 from datetime import datetime
 
-from dateutil.rrule import DAILY, WEEKLY, MONTHLY, YEARLY, weekdays
+from dateutil.rrule import DAILY, WEEKLY, MONTHLY, YEARLY, weekdays, weekday, MO, TU, WE, TH, FR, SA, SU, rrule
 
-from .timeCodeParserTypes import (EventType, DateRangeObject, TimeRangeObject, TimeUnit, TimeRange, FreqObject, ByObject,
-                                  TimeCodeLex, TimeCodeSem, TimeCodeParseResult, TimeCodeDao, DateUnit)
-from .userSettings import getSettingsByPath
+from src.schedule.timeCodeParserTypes import (EventType, DateRangeObject, TimeRangeObject, TimeUnit, TimeRange,
+                                              FreqObject, ByObject, TimeCodeLex, TimeCodeSem, TimeCodeParseResult, TimeCodeDao, DateUnit)
+from src.schedule.userSettings import getSettingsByPath
+from src.utils.timeZone import isValidTimeZone, getTimeZoneAbbrMap
+
+timeZoneAbbrMap = getTimeZoneAbbrMap()
 
 
 def parseDateRange(dateRange: str) -> DateRangeObject:
@@ -97,7 +104,7 @@ def parseTimeRange(timeRange: str) -> TimeRangeObject:
             raise ValueError(f'invalid time: {timeRange}')
         res.end = TimeUnit(int(endHour), int(endMin))
 
-    # bin 转为二进制字符串, [2:] 去掉 0b 前缀, zfill(2) 补齐两位
+    # bin 转为二进制字符串，[2:] 去掉 0b 前缀，zfill(2) 补齐两位
     res.startMark = bin(startMark)[2:].zfill(2)
     res.endMark = bin(endMark)[2:].zfill(2)
     return res
@@ -168,8 +175,229 @@ def parseBy(byCode: str) -> ByObject:
                 choices = list(map(int, value.split(',')))
                 offset = getWeekdayOffset()
                 byweekday = list(map(lambda choice: weekdays[choice - 1 + offset], choices))
-                if byweekday[0] is not None and len(byweekday) > 1:
+                if byweekday[0] is not None and len(byweekday) > 0:
                     res.byweekday = byweekday
                 else:
                     raise ValueError(f'invalid byday: {value}')
     return res
+
+
+def dateSugar(date: str) -> str:
+    def repl(match):
+        if match.group(0) == 'tdy':
+            return datetime.now().astimezone(tz.gettz(getSettingsByPath('rrule.timeZone'))).strftime('%Y/%m/%d')
+        elif match.group(0) == 'tmr':
+            return (datetime.now() + relativedelta(days=1)).astimezone(
+                tz.gettz(getSettingsByPath('rrule.timeZone'))).strftime('%Y/%m/%d')
+
+    date = re.sub(r'tdy|tmr', repl, date)
+    return date
+
+
+def timeSugar(time: str) -> str:
+    def repl(match):
+        if match.group(0) == 'start' or match.group(0) == 's':
+            return ('0:0')
+        elif match.group(0) == 'end' or match.group(0) == 'e':
+            return ('23:59')
+        else:
+            return ':'
+
+    time = re.sub(r'start|end|s|e|\.', repl, time)
+    return time
+
+
+def parseTimeCodeLex(timeCode: str) -> TimeCodeLex:
+    timeCode = timeCode.strip()
+    codes = timeCode.split()  # split 默认忽略连续空格
+    if 2 <= len(codes) <= 5:
+        [date, time, *options] = codes
+
+        date = dateSugar(date)
+        time = timeSugar(time)
+
+        freq = ['daily', 'weekly', 'monthly', 'yearly']
+        optionsMark = {
+            'timeZone': 0,
+            'freq': 0,
+            'by': 0,
+        }
+        timeZone = getSettingsByPath('rrule.timeZone')
+        freqCode: str | None = None
+        byCode: str | None = None
+        while len(options) > 0:
+            code: str = options.pop(0)
+            if code.find('by[') == 0:
+                # 是 by 函数
+                optionsMark['by'] += 1
+                byCode = code
+            elif code in freq or code.split(',')[0] in freq:
+                # 是 freq + 参数 或 freq
+                optionsMark['freq'] += 1
+                freqCode = code
+            else:
+                # 是时区
+                if isValidTimeZone(code):
+                    optionsMark['timeZone'] += 1
+                    timeZone = code
+                else:
+                    # 是时区缩写
+                    if code in timeZoneAbbrMap:
+                        optionsMark['timeZone'] += 1
+                        # 从缩写转换为完整的时区，直接选第一个
+                        timeZone = list(timeZoneAbbrMap[code])[0]
+                    # 是非法内容
+                    else:
+                        raise ValueError(f'invalid time code options: {code}')
+
+        # 如果有超过两次的
+        for key, value in optionsMark.items():
+            if value > 1:
+                raise ValueError('invalid time code options')
+
+        newTimeCode = f'{date} {time} {timeZone}{f" {freqCode}" if freqCode is not None else ""}{f" {byCode}" if byCode is not None else ""}'
+
+        # 开始解析每个部分
+        dateRangeObj = parseDateRange(date)
+        timeRangeObj = parseTimeRange(time)
+        eventType = EventType.Event
+        if timeRangeObj.start is None:
+            eventType = EventType.Todo
+
+        return TimeCodeLex(eventType, dateRangeObj, timeRangeObj, timeZone, freqCode, byCode, newTimeCode)
+    else:
+        raise ValueError('time code error')
+
+
+def getWKST() -> weekday:
+    weekStart = getSettingsByPath('rrule.wkst')
+    if weekStart == 'MO':
+        return MO
+    elif weekStart == 'TU':
+        return TU
+    elif weekStart == 'WE':
+        return WE
+    elif weekStart == 'TH':
+        return TH
+    elif weekStart == 'FR':
+        return FR
+    elif weekStart == 'SA':
+        return SA
+    elif weekStart == 'SU':
+        return SU
+    else:
+        raise ValueError(f'Unknown wkst: {weekStart}')
+
+
+def parseTimeCodeSem(
+        dateRangeObj: DateRangeObject,
+        timeRangeObj: TimeRangeObject,
+        timeZone: str,
+        freqCode: str | None,
+        byCode: str | None) -> TimeCodeSem:
+    times: list[TimeRange] = []
+    rruleConfig = {}
+    dtstart = datetime(**dateRangeObj.dtstart.__dict__)
+    rruleConfig['dtstart'] = dtstart
+    until: datetime | None = None
+    if dateRangeObj.until is not None:
+        until = datetime(**dateRangeObj.until.__dict__)
+        rruleConfig['until'] = until
+    # 默认 daily
+    rruleConfig['freq'] = DAILY
+    # until is None 时 count: 1
+    if until is None:
+        rruleConfig['count'] = 1
+
+    if freqCode is not None and dateRangeObj.until is not None:
+        freqObj = parseFreq(freqCode)
+        rruleConfig = {**rruleConfig, **freqObj.__dict__}
+    if byCode is not None and dateRangeObj.until is not None:
+        byObj = parseBy(byCode)
+        rruleConfig = {**rruleConfig, **byObj.__dict__}
+    # wkst
+    rruleConfig['wkst'] = getWKST()
+
+    # rrule
+    rrule = dateutil.rrule.rrule(**rruleConfig)
+
+    for t in rrule:
+        # t 是 UTC 时区的，更改时区，但不改变时间的值
+        tAtTimeZone = t.replace(tzinfo=tz.gettz(timeZone))
+        start: datetime | None = None
+        end = tAtTimeZone.replace(**timeRangeObj.end.__dict__)
+        if timeRangeObj.start is not None:
+            # 如果 start.hour > end.hour，说明跨天了
+            if timeRangeObj.start.hour > timeRangeObj.end.hour:
+                end = (tAtTimeZone + relativedelta(days=1)).replace(**timeRangeObj.end.__dict__)
+            start = tAtTimeZone.replace(**timeRangeObj.start.__dict__)
+
+        # 转换成 UTC 时区
+        start = start.astimezone(tz.gettz('UTC')) if start is not None else start
+        end = end.astimezone(tz.gettz('UTC'))
+
+        if end.isoformat() is not None:
+            times.append(TimeRange(**{
+                **timeRangeObj.__dict__,
+                'start': start.isoformat() if start is not None else start,
+                'end': end.isoformat()
+            }))
+        else:
+            raise ValueError('The value of end is invalid')
+
+    return TimeCodeSem(times=times, rruleObject=rrule)
+
+
+def timeCodeParser(timeCode: str) -> TimeCodeParseResult:
+    timeCode = timeCode.strip()
+    # 去除 \n \t \r 等符号
+    timeCode = re.sub(r'\n\t\r', '', timeCode)
+    lines = timeCode.split(';')
+
+    eventType: EventType | None = None
+    times: list[TimeRange] = []
+    rruleObjects: list[rrule] = []
+    newTimeCodes: list[str] = []
+    for line in lines:
+        if len(line) == 0:
+            continue
+        timeCodeLex = parseTimeCodeLex(line)
+
+        if eventType is not None and eventType != timeCodeLex.eventType:
+            raise ValueError('The event type of each line must be the same')
+        eventType = timeCodeLex.eventType
+        newTimeCodes.append(timeCodeLex.newTimeCode)
+        timeCodeSem = parseTimeCodeSem(timeCodeLex.dateRangeObject, timeCodeLex.timeRangeObject, timeCodeLex.timeZone, timeCodeLex.freqCode, timeCodeLex.byCode)
+        times.extend(timeCodeSem.times)
+        rruleObjects.append(timeCodeSem.rruleObject)
+
+    return TimeCodeParseResult(eventType, times, rruleObjects, newTimeCodes)
+
+
+def parseTimeCodes(rTimeCodes: str, exTimeCodes: str) -> TimeCodeDao:
+    rTimeCodeParseResult = timeCodeParser(rTimeCodes)
+    exTimeCodeParseResult = timeCodeParser(exTimeCodes)
+
+    if exTimeCodeParseResult.eventType is not None and rTimeCodeParseResult.eventType != exTimeCodeParseResult.eventType:
+        raise ValueError('The event type of each line must be the same')
+
+    rruleStr = ' '.join(map(lambda obj: str(obj), rTimeCodeParseResult.rruleObjects))
+
+    # delete: true, 要去除的时间
+    intersection = list(filter(lambda time: time not in exTimeCodeParseResult.times, rTimeCodeParseResult.times))
+    # delete: false, 不要去除的时间
+    difference = list(filter(lambda time: time not in intersection, rTimeCodeParseResult.times))
+
+    return TimeCodeDao(
+        eventType=rTimeCodeParseResult.eventType,
+        rTimes=intersection,
+        exTimes=difference,
+        rruleStr=rruleStr,
+        rTimeCodes=';'.join(rTimeCodeParseResult.newTimeCodes),
+        exTimeCodes=';'.join(exTimeCodeParseResult.newTimeCodes)
+    )
+
+
+if __name__ == '__main__':
+    s = 'tdy 123242 tdy'
+    print(dateSugar(s))
