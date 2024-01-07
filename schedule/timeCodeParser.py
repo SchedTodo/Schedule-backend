@@ -7,11 +7,12 @@ from datetime import datetime
 
 from dateutil.rrule import DAILY, WEEKLY, MONTHLY, YEARLY, weekdays, weekday, MO, TU, WE, TH, FR, SA, SU, rrule
 
-from src.schedule.timeCodeParserTypes import (EventType, DateRangeObject, TimeRangeObject, TimeUnit, TimeRange,
-                                              FreqObject, ByObject, TimeCodeLex, TimeCodeSem, TimeCodeParseResult, TimeCodeDao, DateUnit)
-from src.schedule.userSettings import getSettingsByPath
-from src.utils.timeZone import isValidTimeZone, getTimeZoneAbbrMap
-from src.utils.utils import intersection, difference
+from schedule.timeCodeParserTypes import (EventType, DateRangeObject, TimeRangeObject, TimeUnit, TimeRange,
+                                          FreqObject, ByObject, TimeCodeLex, TimeCodeSem, TimeCodeParseResult,
+                                          TimeCodeDao, DateUnit)
+from schedule.userSettings import getSettingsByPath
+from utils.timeZone import isValidTimeZone, getTimeZoneAbbrMap
+from utils.utils import intersection, difference
 
 timeZoneAbbrMap = getTimeZoneAbbrMap()
 
@@ -368,7 +369,8 @@ def timeCodeParser(timeCode: str) -> TimeCodeParseResult:
             raise ValueError('The event type of each line must be the same')
         eventType = timeCodeLex.eventType
         newTimeCodes.append(timeCodeLex.newTimeCode)
-        timeCodeSem = parseTimeCodeSem(timeCodeLex.dateRangeObject, timeCodeLex.timeRangeObject, timeCodeLex.timeZone, timeCodeLex.freqCode, timeCodeLex.byCode)
+        timeCodeSem = parseTimeCodeSem(timeCodeLex.dateRangeObject, timeCodeLex.timeRangeObject, timeCodeLex.timeZone,
+                                       timeCodeLex.freqCode, timeCodeLex.byCode)
         times.extend(timeCodeSem.times)
         rruleObjects.append(timeCodeSem.rruleObject)
 

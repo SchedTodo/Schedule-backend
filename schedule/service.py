@@ -5,12 +5,12 @@ from django.core.paginator import Paginator
 from dateutil import tz
 from dateutil.relativedelta import relativedelta
 
-from src.schedule.models import Schedule, Time, Record
-from src.schedule.timeCodeParser import parseTimeCodes
-from src.schedule.timeCodeParserTypes import TimeRange, EventType
-from src.schedule.userSettings import getSettingsByPath
-from src.utils.utils import difference, union
-from src.utils.vo import EventBriefVO, TodoBriefVO, ScheduleBriefVO
+from schedule.models import Schedule, Time, Record
+from schedule.timeCodeParser import parseTimeCodes
+from schedule.timeCodeParserTypes import TimeRange, EventType
+from schedule.userSettings import getSettingsByPath
+from utils.utils import difference, union
+from utils.vo import EventBriefVO, TodoBriefVO, ScheduleBriefVO
 
 
 def createSchedule(name: str, timeCodes: str, comment: str, exTimeCodes: str):
