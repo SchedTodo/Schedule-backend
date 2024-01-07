@@ -1,6 +1,10 @@
+import json
+
 from django.shortcuts import render
 from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
 
+from .service import FindAllSchedulesConditions
 from .timeCodeParserTypes import DateUnit
 from . import service
 
@@ -20,71 +24,100 @@ def hello(request):
     return JsonResponse(DateUnit().__dict__)
 
 
+@require_http_methods(["POST"])
 def createSchedule(request):
-    name, rTimeCode, comment, exTimeCode = request.POST['name'], request.POST['rTimeCode'], request.POST['comment'], request.POST['exTimeCode']
+    data = json.loads(request.body)
+    name, rTimeCode, comment, exTimeCode = data['name'], data['rTime'], data['comment'], data['exTime']
     return errorHandler(service.createSchedule)(name, rTimeCode, comment, exTimeCode)
 
 
+@require_http_methods(["POST"])
 def updateScheduleById(request):
-    id, name, rTimeCode, comment, exTimeCode = request.POST['id'], request.POST['name'], request.POST['rTimeCode'], request.POST['comment'], request.POST['exTimeCode']
+    data = json.loads(request.body)
+    id, name, rTimeCode, comment, exTimeCode = data['id'], data['name'], data['rTime'], data['comment'], data['exTime']
     return errorHandler(service.updateScheduleById)(id, name, rTimeCode, comment, exTimeCode)
 
 
+@require_http_methods(["POST"])
 def findEventsBetween(request):
-    start, end = request.POST['start'], request.POST['end']
+    data = json.loads(request.body)
+    start, end = data['start'], data['end']
     return errorHandler(service.findEventsBetween)(start, end)
 
 
+@require_http_methods(["POST"])
 def findAllTodos(request):
+    data = json.loads(request.body)
     return errorHandler(service.findAllTodos)()
 
 
+@require_http_methods(["POST"])
 def findScheduleById(request):
-    id = request.POST['id']
+    data = json.loads(request.body)
+    id = data['id']
     return errorHandler(service.findScheduleById)(id)
 
 
+@require_http_methods(["POST"])
 def findTimesByScheduleId(request):
-    scheduleId = request.POST['scheduleId']
+    data = json.loads(request.body)
+    scheduleId = data['scheduleId']
     return errorHandler(service.findTimesByScheduleId)(scheduleId)
 
 
+@require_http_methods(["POST"])
 def findRecordsByScheduleId(request):
-    scheduleId = request.POST['scheduleId']
+    data = json.loads(request.body)
+    scheduleId = data['scheduleId']
     return errorHandler(service.findRecordsByScheduleId)(scheduleId)
 
 
+@require_http_methods(["POST"])
 def deleteScheduleById(request):
-    id = request.POST['id']
+    data = json.loads(request.body)
+    id = data['id']
     return errorHandler(service.deleteScheduleById)(id)
 
 
+@require_http_methods(["POST"])
 def deleteTimeByIds(request):
-    ids = request.POST['ids']
+    data = json.loads(request.body)
+    ids = data['ids']
     return errorHandler(service.deleteTimeByIds)(ids)
 
 
+@require_http_methods(["POST"])
 def updateTimeCommentById(request):
-    id, comment = request.POST['id'], request.POST['comment']
+    data = json.loads(request.body)
+    id, comment = data['id'], data['comment']
     return errorHandler(service.updateTimeCommentById)(id, comment)
 
 
+@require_http_methods(["POST"])
 def findAllSchedules(request):
-    conditions, page, pageSize = request.POST['conditions'], request.POST['page'], request.POST['pageSize']
-    return errorHandler(service.findAllSchedules)()
+    data = json.loads(request.body)
+    conditions, page, pageSize = data['conditions'], data['page'], data['pageSize']
+    conditions = FindAllSchedulesConditions(conditions)
+    return errorHandler(service.findAllSchedules)(conditions, page, pageSize)
 
 
+@require_http_methods(["POST"])
 def updateDoneById(request):
-    id, done = request.POST['id'], request.POST['done']
+    data = json.loads(request.body)
+    id, done = data['id'], data['done']
     return errorHandler(service.updateDoneById)(id, done)
 
 
+@require_http_methods(["POST"])
 def updateStarById(request):
-    id, star = request.POST['id'], request.POST['star']
+    data = json.loads(request.body)
+    id, star = data['id'], data['star']
     return errorHandler(service.updateStarById)(id, star)
 
 
+@require_http_methods(["POST"])
 def createRecord(request):
-    scheduleId, startTime, endTime = request.POST['scheduleId'], request.POST['startTime'], request.POST['endTime']
+    data = json.loads(request.body)
+    scheduleId, startTime, endTime = data['scheduleId'], data['startTime'], data['endTime']
     return errorHandler(service.createRecord)(scheduleId, startTime, endTime)
 

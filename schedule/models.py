@@ -21,11 +21,26 @@ class Schedule(models.Model):
     def __str__(self):
         return self.name
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'type': self.type,
+            'name': self.name,
+            'rrules': self.rrules,
+            'rTimeCode': self.rTimeCode,
+            'exTimeCode': self.exTimeCode,
+            'comment': self.comment,
+            'star': self.star,
+            'deleted': self.deleted,
+            'created': self.created,
+            'updated': self.updated,
+        }
+
 
 class Time(models.Model):
     id = models.CharField(primary_key=True, max_length=255)
-    schedule_id = models.ForeignKey(Schedule, on_delete=models.CASCADE, related_name='times')
-    start = models.CharField(max_length=255)
+    schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, related_name='times')
+    start = models.CharField(max_length=255, null=True)
     end = models.CharField(max_length=255)
     startMark = models.CharField(max_length=255)
     endMark = models.CharField(max_length=255)
@@ -38,10 +53,25 @@ class Time(models.Model):
     def __str__(self):
         return f'{self.start}-{self.end}'
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'schedule_id': self.schedule_id,
+            'start': self.start,
+            'end': self.end,
+            'startMark': self.startMark,
+            'endMark': self.endMark,
+            'comment': self.comment,
+            'done': self.done,
+            'deleted': self.deleted,
+            'created': self.created,
+            'updated': self.updated,
+        }
+
 
 class Record(models.Model):
     id = models.CharField(primary_key=True, max_length=255)
-    schedule_id = models.ForeignKey(Schedule, on_delete=models.CASCADE, related_name='record')
+    schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, related_name='record')
     start = models.CharField(max_length=255)
     end = models.CharField(max_length=255)
     deleted = models.BooleanField(default=False)
@@ -50,3 +80,14 @@ class Record(models.Model):
 
     def __str__(self):
         return f'{self.start}-{self.end}'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'schedule_id': self.schedule_id,
+            'start': self.start,
+            'end': self.end,
+            'deleted': self.deleted,
+            'created': self.created,
+            'updated': self.updated,
+        }
