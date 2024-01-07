@@ -11,6 +11,7 @@ from src.schedule.timeCodeParserTypes import (EventType, DateRangeObject, TimeRa
                                               FreqObject, ByObject, TimeCodeLex, TimeCodeSem, TimeCodeParseResult, TimeCodeDao, DateUnit)
 from src.schedule.userSettings import getSettingsByPath
 from src.utils.timeZone import isValidTimeZone, getTimeZoneAbbrMap
+from src.utils.utils import intersection, difference
 
 timeZoneAbbrMap = getTimeZoneAbbrMap()
 
@@ -260,9 +261,9 @@ def parseTimeCodeLex(timeCode: str) -> TimeCodeLex:
         # 开始解析每个部分
         dateRangeObj = parseDateRange(date)
         timeRangeObj = parseTimeRange(time)
-        eventType = EventType.Event
+        eventType = EventType.EVENT
         if timeRangeObj.start is None:
-            eventType = EventType.Todo
+            eventType = EventType.TODO
 
         return TimeCodeLex(eventType, dateRangeObj, timeRangeObj, timeZone, freqCode, byCode, newTimeCode)
     else:
@@ -384,14 +385,14 @@ def parseTimeCodes(rTimeCodes: str, exTimeCodes: str) -> TimeCodeDao:
     rruleStr = ' '.join(map(lambda obj: str(obj), rTimeCodeParseResult.rruleObjects))
 
     # delete: true, 要去除的时间
-    intersection = list(filter(lambda time: time not in exTimeCodeParseResult.times, rTimeCodeParseResult.times))
+    inter = intersection(rTimeCodeParseResult.times, exTimeCodeParseResult.times, lambda a, b: a == b)
     # delete: false, 不要去除的时间
-    difference = list(filter(lambda time: time not in intersection, rTimeCodeParseResult.times))
+    diff = difference(rTimeCodeParseResult.times, exTimeCodeParseResult.times, lambda a, b: a == b)
 
     return TimeCodeDao(
         eventType=rTimeCodeParseResult.eventType,
-        rTimes=intersection,
-        exTimes=difference,
+        rTimes=diff,
+        exTimes=inter,
         rruleStr=rruleStr,
         rTimeCodes=';'.join(rTimeCodeParseResult.newTimeCodes),
         exTimeCodes=';'.join(exTimeCodeParseResult.newTimeCodes)

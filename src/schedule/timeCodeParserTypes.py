@@ -2,8 +2,8 @@ from dateutil.rrule import rrule, weekday
 
 
 class EventType:
-    Event = 'event'
-    Todo = 'todo'
+    EVENT = 'event'
+    TODO = 'todo'
 
 
 class DateUnit:
@@ -179,7 +179,7 @@ class TimeCodeLex:
     byCode: str | None
     newTimeCode: str
 
-    def __init__(self, eventType: EventType = EventType.Event, dateRangeObject: DateRangeObject = DateRangeObject(),
+    def __init__(self, eventType: EventType = EventType.EVENT, dateRangeObject: DateRangeObject = DateRangeObject(),
                  timeRangeObject: TimeRangeObject = TimeRangeObject(), timeZone: str = '', freqCode: str | None = None,
                  byCode: str | None = None, newTimeCode: str = ''):
         self.eventType = eventType
@@ -231,7 +231,7 @@ class TimeCodeParseResult:
     rruleObjects: list[rrule]
     newTimeCodes: list[str]
 
-    def __init__(self, eventType: EventType = EventType.Event, times=None, rruleObjects=None, newTimeCodes=None):
+    def __init__(self, eventType: EventType = EventType.EVENT, times=None, rruleObjects=None, newTimeCodes=None):
         if times is None:
             times = []
         if rruleObjects is None:
@@ -263,7 +263,7 @@ class TimeCodeDao:
     rTimeCodes: str
     exTimeCodes: str
 
-    def __init__(self, eventType: EventType = EventType.Event, rTimes=None, exTimes=None, rruleStr: str = '', rTimeCodes: str = '', exTimeCodes: str = ''):
+    def __init__(self, eventType: EventType = EventType.EVENT, rTimes=None, exTimes=None, rruleStr: str = '', rTimeCodes: str = '', exTimeCodes: str = ''):
         if rTimes is None:
             rTimes = []
         if exTimes is None:

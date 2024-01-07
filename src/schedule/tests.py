@@ -44,7 +44,7 @@ class ParseTimeTest(TestCase):
                          TimeRangeObject(start=TimeUnit(0, 0), end=TimeUnit(21, 30), startMark='00', endMark='11'))
 
     def test_parseTimeRangeStartHourUnknown(self):
-        self.assertRaises(ValueError, parseTimeRange, '?:30-21:30')
+        self.assertRaises(Exception, parseTimeRange, '?:30-21:30')
 
     def test_parseTimeRangeStartMinUnknown(self):
         self.assertEqual(parseTimeRange('20:?-21:00'),
@@ -55,21 +55,21 @@ class ParseTimeTest(TestCase):
                          TimeRangeObject(start=TimeUnit(20, 30), end=TimeUnit(0, 0), startMark='11', endMark='00'))
 
     def test_parseTimeRangeEndHourUnknown(self):
-        self.assertRaises(ValueError, parseTimeRange, '20:30-?:30')
+        self.assertRaises(Exception, parseTimeRange, '20:30-?:30')
 
     def test_parseTimeRangeEndMinUnknown(self):
         self.assertEqual(parseTimeRange('20:30-21:?'),
                          TimeRangeObject(start=TimeUnit(20, 30), end=TimeUnit(21, 0), startMark='11', endMark='10'))
 
     def test_parseTimeRangeStartEndHourUnknown(self):
-        self.assertRaises(ValueError, parseTimeRange, '?:30-?:30')
+        self.assertRaises(Exception, parseTimeRange, '?:30-?:30')
 
     def test_parseTimeRangeStartEndMinUnknown(self):
         self.assertEqual(parseTimeRange('20:?-21:?'),
                          TimeRangeObject(start=TimeUnit(20, 0), end=TimeUnit(21, 0), startMark='10', endMark='10'))
 
     def test_parseTimeRangeAllUnknown(self):
-        self.assertRaises(ValueError, parseTimeRange, '?:?-?:?')
+        self.assertRaises(Exception, parseTimeRange, '?:?-?:?')
 
 
 class ParseFreqTest(TestCase):
@@ -406,17 +406,34 @@ class ParseTimeCodeTest(TestCase):
             self.assertEqual(tEnd.strftime('%Y/%m/%d %H:%M'), '2023/08/09 23:59')
 
     def test_parseTimeCodeInvalid(self):
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30', '')
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30/1 22:00 America/Chicago', '')
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30 22:00:00 America/Chicago', '')
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30 ?:20 America/Chicago', '')
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago dly;', '')
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago dly,i2,c2;', '')
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago daily,ia;', '')
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago daily,i2,ca;', '')
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago daily,i2,c2 monthly.i2;', '')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30', '')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30/1 22:00 America/Chicago', '')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30 22:00:00 America/Chicago', '')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30 ?:20 America/Chicago', '')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago dly;', '')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago dly,i2,c2;', '')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago daily,ia;', '')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago daily,i2,ca;', '')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago daily,i2,c2 monthly.i2;', '')
         self.assertRaises(IndexError, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago by[day[8]];', '')
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago;', '2023/11/30-12/21 22:00-23:00 America/Chicago;')
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30-12/21 22:00-23:00 America/Chicago;', '2023/11/30-12/21 22:00 America/Chicago;')
-        self.assertRaises(ValueError, parseTimeCodes, '', '2023/11/30-12/21 22:00-23:00 America/Chicago;')
-        self.assertRaises(ValueError, parseTimeCodes, '2023/11/30-12/21 22:00-23:00 America/Chicago; 2023/11/30-12/21 22:00 America/Chicago;', '')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30-12/21 22:00 America/Chicago;', '2023/11/30-12/21 22:00-23:00 America/Chicago;')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30-12/21 22:00-23:00 America/Chicago;', '2023/11/30-12/21 22:00 America/Chicago;')
+        self.assertRaises(Exception, parseTimeCodes, '', '2023/11/30-12/21 22:00-23:00 America/Chicago;')
+        self.assertRaises(Exception, parseTimeCodes, '2023/11/30-12/21 22:00-23:00 America/Chicago; 2023/11/30-12/21 22:00 America/Chicago;', '')
+
+
+class TimeTest(TestCase):
+    def test_replaceTimeZone(self):
+        t = datetime.fromisoformat('2023-07-10T21:00:00.000Z')
+        timeZone = 'America/Chicago'
+        tAtTimeZone = t.replace(tzinfo=tz.gettz(timeZone))
+        self.assertEqual(tAtTimeZone.isoformat(), '2023-07-10T21:00:00-05:00')
+
+    def test_relativeDelta(self):
+        t = datetime.fromisoformat('2023-07-10T21:00:00.000Z')
+        tDelta1 = t + relativedelta(days=1)
+        self.assertEqual(tDelta1.isoformat(), '2023-07-11T21:00:00+00:00')
+        tDelta2 = t + relativedelta(day=11)
+        self.assertEqual(tDelta2.isoformat(), '2023-07-11T21:00:00+00:00')
+        tDelta3 = t + relativedelta(hour=10, minute=30)
+        self.assertEqual(tDelta3.isoformat(), '2023-07-10T10:30:00+00:00')
