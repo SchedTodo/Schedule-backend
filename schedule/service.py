@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 
 from dateutil import tz
 from dateutil.relativedelta import relativedelta
+from django.db import transaction
 
 from schedule.models import Schedule, Time, Record
 from schedule.timeCodeParser import parseTimeCodes
@@ -14,6 +15,7 @@ from utils.utils import difference, union
 from utils.vo import EventBriefVO, TodoBriefVO, ScheduleBriefVO
 
 
+@transaction.atomic
 def createSchedule(name: str, timeCodes: str, comment: str, exTimeCodes: str):
     parseRes = parseTimeCodes(timeCodes, exTimeCodes)
     eventType, rTimes, exTimes, rruleStr, code, exCode = parseRes.eventType, parseRes.rTimes, parseRes.exTimes, parseRes.rruleStr, parseRes.rTimeCodes, parseRes.exTimeCodes
@@ -35,6 +37,7 @@ def createSchedule(name: str, timeCodes: str, comment: str, exTimeCodes: str):
     return schedule.to_dict()
 
 
+@transaction.atomic
 def updateScheduleById(id: str, name: str, timeCodes: str, comment: str, exTimeCodes: str):
     oldSchedule = Schedule.objects.get(id=id)
 
@@ -192,6 +195,7 @@ def findRecordsByScheduleId(scheduleId: str):
     return records
 
 
+@transaction.atomic
 def deleteScheduleById(id: str):
     # 级联更新 deleted = true
     schedule = Schedule.objects.get(id=id)
@@ -202,6 +206,7 @@ def deleteScheduleById(id: str):
     return schedule.to_dict()
 
 
+@transaction.atomic
 def deleteTimeById(id: str):
     time = Time.objects.get(id=id)
     time.deleted = True
