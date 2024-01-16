@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,12 +26,17 @@ SECRET_KEY = 'django-insecure-d4-bob$=%agw$28pj28ca#q%06(x4@u-7dofl^$#76*4tc2cln
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+
+# TODO 使用 http, 不要在生产环境中使用这个设置
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
 ALLOWED_HOSTS = ['*']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -38,7 +44,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
+    'channels',
     'schedule',
+    'user',
 ]
 
 MIDDLEWARE = [
@@ -51,6 +59,17 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
+# 设置 ASGI 应用程序
+ASGI_APPLICATION = 'main.routing.application'
 
 ROOT_URLCONF = 'main.urls'
 
@@ -84,6 +103,17 @@ DATABASES = {
         'PASSWORD': 'postgres',
         'HOST': 'localhost',
         'PORT': '3366',
+    }
+}
+
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/0",  # Redis 服务器地址和数据库
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
     }
 }
 
@@ -128,6 +158,9 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# 设置用户模型
+AUTH_USER_MODEL = 'user.ScheduleUser'
 
 # 跨域增加忽略
 CORS_ALLOW_CREDENTIALS = True
