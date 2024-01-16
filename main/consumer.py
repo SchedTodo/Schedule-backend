@@ -10,7 +10,7 @@ class MyConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
-        if self.uid in connected_users:
+        if 'uid' in self.__dict__ and self.uid in connected_users:
             del connected_users[self.uid]
         pass
 

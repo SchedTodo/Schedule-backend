@@ -55,3 +55,17 @@ class ScheduleUser(AbstractUser):
 
     def __str__(self):
         return self.email
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'profile_image_url': self.profile_image_url,
+            'locale': self.locale,
+            'date_joined': self.date_joined,
+            'last_login': self.last_login,
+            'is_staff': self.is_staff,
+            'is_superuser': self.is_superuser,
+        }

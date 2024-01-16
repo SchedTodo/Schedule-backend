@@ -4,19 +4,20 @@ import os
 import secrets
 
 from django.shortcuts import render
+from django.views.decorators.http import require_http_methods
 from google_auth_oauthlib.flow import Flow
 from django.shortcuts import redirect
 from django.core.cache import cache
 from django.http import HttpResponse
 
+from main.decorators import errorHandler, checkToken
 from main.settings import BASE_DIR
 from main.consumer import send_message_to_user
+from . import service
 from .models import ScheduleUser
 
 
 # Create your views here.
-
-
 def googleLogin(request):
     uid = request.GET.get('uid')
     cache.set(uid, 0, 60 * 10)  # 保存 10 分钟
@@ -70,7 +71,6 @@ def googleCallback(request):
         })
 
     token = secrets.token_hex(16)
-    cache.set(uid, json.dumps({'token': token, 'id': user.id}), 60 * 10)  # 保存 10 分钟
     cache.set(token, user.id, 60 * 60 * 24 * 7)  # 保存 7 天
 
     loop = asyncio.new_event_loop()
@@ -94,16 +94,11 @@ def googleCallback(request):
     return HttpResponse(status=200)
 
 
-def getProfile(request):
+@require_http_methods(["POST"])
+@errorHandler
+@checkToken
+def getProfileById(request):
     data = json.loads(request.body)
-    uid = data['uid']
-    print('getProfile', uid)
+    id = data['id']
 
-    user = cache.get(uid)
-
-    if not user:
-        return HttpResponse(status=401)
-
-    cache.delete(uid)  # 删除缓存
-
-    return HttpResponse(user, content_type='application/json')
+    return service.getProfileById(id)

@@ -5,7 +5,6 @@ from . import views
 app_name = 'schedule'
 
 urlpatterns = [
-    path('hello/', views.hello, name="hello"),
     path('createSchedule/', views.createSchedule, name="createSchedule"),
     path('updateScheduleById/', views.updateScheduleById, name="updateScheduleById"),
     path('findEventsBetween/', views.findEventsBetween, name="findEventsBetween"),
