@@ -94,11 +94,8 @@ def googleCallback(request):
     return HttpResponse(status=200)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def getProfileById(request):
-    data = json.loads(request.body)
-    id = data['id']
-
-    return service.getProfileById(id)
+@require_http_methods(["POST"])
+def getProfile(request, userId):
+    return service.getProfileById(userId)

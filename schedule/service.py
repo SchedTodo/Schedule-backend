@@ -6,31 +6,35 @@ from django.core.paginator import Paginator
 from dateutil import tz
 from dateutil.relativedelta import relativedelta
 from django.db import transaction
+from django.db.models import Model
 
-from schedule.models import Schedule, Time, Record
+from schedule.models import Schedule, Time, Record, Base
 from schedule.timeCodeParser import parseTimeCodes
 from schedule.timeCodeParserTypes import TimeRange, EventType
 from schedule.userSettings import getSettingsByPath
+from user.models import ScheduleUser
 from utils.utils import difference, union
 from utils.vo import EventBriefVO, TodoBriefVO, ScheduleBriefVO
 
 
 @transaction.atomic
-def createSchedule(name: str, timeCodes: str, comment: str, exTimeCodes: str):
+def createSchedule(userId: int, name: str, timeCodes: str, comment: str, exTimeCodes: str):
     parseRes = parseTimeCodes(timeCodes, exTimeCodes)
     eventType, rTimes, exTimes, rruleStr, code, exCode = parseRes.eventType, parseRes.rTimes, parseRes.exTimes, parseRes.rruleStr, parseRes.rTimeCodes, parseRes.exTimeCodes
 
-    schedule = Schedule(id=uuid.uuid4().hex, type=eventType, name=name, rrules=rruleStr, rTimeCode=code,
+    schedule = Schedule(id=uuid.uuid4().hex, user_id=userId, type=eventType, name=name, rrules=rruleStr, rTimeCode=code,
                         exTimeCode=exCode, comment=comment)
     schedule.save()
 
     for time in rTimes:
-        time = Time(id=uuid.uuid4().hex, schedule_id=schedule.id, start=time.start, end=time.end, startMark=time.startMark,
+        time = Time(id=uuid.uuid4().hex, schedule_id=schedule.id, start=time.start, end=time.end,
+                    startMark=time.startMark,
                     endMark=time.endMark, done=False, deleted=False)
         time.save()
 
     for time in exTimes:
-        time = Time(id=uuid.uuid4().hex, schedule_id=schedule.id, start=time.start, end=time.end, startMark=time.startMark,
+        time = Time(id=uuid.uuid4().hex, schedule_id=schedule.id, start=time.start, end=time.end,
+                    startMark=time.startMark,
                     endMark=time.endMark, done=False, deleted=True)
         time.save()
 
@@ -38,8 +42,8 @@ def createSchedule(name: str, timeCodes: str, comment: str, exTimeCodes: str):
 
 
 @transaction.atomic
-def updateScheduleById(id: str, name: str, timeCodes: str, comment: str, exTimeCodes: str):
-    oldSchedule = Schedule.objects.get(id=id)
+def updateScheduleById(id: str, userId: int, name: str, timeCodes: str, comment: str, exTimeCodes: str):
+    oldSchedule = Schedule.objects.get(id=id, user_id=userId)
 
     if oldSchedule.deleted:
         raise Exception('try to update a deleted schedule')
@@ -56,6 +60,7 @@ def updateScheduleById(id: str, name: str, timeCodes: str, comment: str, exTimeC
     schedule.rTimeCode = code
     schedule.exTimeCode = exCode
     schedule.comment = comment
+    schedule.version += 1
     schedule.save()
 
     # 如果时间片没有变化，直接返回
@@ -116,8 +121,9 @@ def updateScheduleById(id: str, name: str, timeCodes: str, comment: str, exTimeC
     return schedule.to_dict()
 
 
-def findEventsBetween(start: str, end: str):
+def findEventsBetween(userId: int, start: str, end: str):
     times = (Time.objects.filter(
+        schedule__user_id=userId,
         start__isnull=False,
         start__gte=datetime.fromisoformat(start).astimezone(tz.gettz('UTC')).isoformat(),
         end__lte=datetime.fromisoformat(end).astimezone(tz.gettz('UTC')).isoformat(),
@@ -126,16 +132,17 @@ def findEventsBetween(start: str, end: str):
              .order_by('start'))
     res: list[EventBriefVO] = []
     for time in times:
-        event = Schedule.objects.get(type=EventType.EVENT, id=time.schedule.id, deleted=False)
-        res.append(EventBriefVO(id=time.id, scheduleId=time.schedule.id, name=event.name, comment=event.comment,
-                                start=time.start, end=time.end, startMark=time.startMark, endMark=time.endMark).to_dict())
+        res.append(EventBriefVO(id=time.id, scheduleId=time.schedule.id, name=time.schedule.name,
+                                comment=time.schedule.comment,
+                                start=time.start, end=time.end, startMark=time.startMark,
+                                endMark=time.endMark).to_dict())
     return res
 
 
-def findAllTodos():
+def findAllTodos(userId: int):
     firstTodos: list[TodoBriefVO] = []
     todayTodos: list[TodoBriefVO] = []
-    todos = Schedule.objects.filter(type=EventType.TODO, deleted=False)
+    todos = Schedule.objects.filter(user_id=userId, type=EventType.TODO, deleted=False)
     for todo in todos:
         time = (Time.objects.filter(
             schedule__id=todo.id,
@@ -151,6 +158,7 @@ def findAllTodos():
             firstTodos.append(TodoBriefVO(id=time.id, scheduleId=todo.id, name=todo.name, end=time.end, done=time.done))
 
     times = (Time.objects.filter(
+        schedule__user_id=userId,
         schedule__type=EventType.TODO,
         schedule__deleted=False,
         # 每天的 start time 作为逻辑上的次日开始时间，未达次日 start time 就过期的 todo 显示 expired，而不是直接消失
@@ -168,7 +176,7 @@ def findAllTodos():
              .order_by('end'))
 
     for time in times:
-        todo = Schedule.objects.get(id=time.schedule.id)  # 上面已经保证 deleted 为 false
+        todo = Schedule.objects.get(id=time.schedule.id, user_id=userId)  # 上面已经保证 deleted 为 false
         todayTodos.append(
             TodoBriefVO(id=time.id, scheduleId=time.schedule.id, name=todo.name, end=time.end, done=time.done))
 
@@ -178,27 +186,27 @@ def findAllTodos():
     return res
 
 
-def findScheduleById(id: str):
-    schedule = Schedule.objects.get(id=id)
+def findScheduleById(id: str, userId: int):
+    schedule = Schedule.objects.get(id=id, user_id=userId)
     return schedule.to_dict()
 
 
-def findTimesByScheduleId(scheduleId: str):
-    times = Time.objects.filter(schedule_id=scheduleId, deleted=False)
+def findTimesByScheduleId(scheduleId: str, userId: int):
+    times = Time.objects.filter(schedule_id=scheduleId, schedule__user_id=userId, deleted=False)
     times = list(map(lambda time: time.to_dict(), times))
     return times
 
 
-def findRecordsByScheduleId(scheduleId: str):
-    records = Record.objects.filter(schedule_id=scheduleId, deleted=False)
+def findRecordsByScheduleId(scheduleId: str, userId: int):
+    records = Record.objects.filter(schedule_id=scheduleId, schedule__user_id=userId, deleted=False)
     records = list(map(lambda record: record.to_dict(), records))
     return records
 
 
 @transaction.atomic
-def deleteScheduleById(id: str):
+def deleteScheduleById(id: str, userId: int):
     # 级联更新 deleted = true
-    schedule = Schedule.objects.get(id=id)
+    schedule = Schedule.objects.get(id=id, user_id=userId)
     schedule.deleted = True
     schedule.save()
     Time.objects.filter(schedule__id=id).update(deleted=True)
@@ -207,8 +215,8 @@ def deleteScheduleById(id: str):
 
 
 @transaction.atomic
-def deleteTimeById(id: str):
-    time = Time.objects.get(id=id)
+def deleteTimeById(userId: int, id: str):
+    time = Time.objects.get(schedule__user_id=userId, id=id)
     time.deleted = True
     time.save()
 
@@ -225,7 +233,7 @@ def deleteTimeById(id: str):
     else:
         exTimeCode = f'{endTime.strftime("%Y/%m/%d")} {endHour}:{endMinute} UTC'
 
-    schedule = Schedule.objects.get(id=time.schedule.id)
+    schedule = Schedule.objects.get(id=time.schedule.id, user_id=userId)
 
     schedule.exTimeCode = exTimeCode if schedule.exTimeCode == '' else f'{schedule.exTimeCode};{exTimeCode}'
     schedule.save()
@@ -233,13 +241,13 @@ def deleteTimeById(id: str):
     return time.to_dict()
 
 
-def deleteTimeByIds(ids: list[str]):
+def deleteTimeByIds(userId: int, ids: list[str]):
     for id in ids:
-        deleteTimeById(id)
+        deleteTimeById(userId, id)
 
 
-def updateTimeCommentById(id: str, comment: str):
-    time = Time.objects.get(id=id)
+def updateTimeCommentById(userId: int, id: str, comment: str):
+    time = Time.objects.get(schedule__user_id=userId, id=id)
     time.comment = comment
     time.save()
     return time.to_dict()
@@ -261,21 +269,24 @@ class FindAllSchedulesConditions:
             self.star = conditions['star']
 
 
-def findAllSchedules(conditions: FindAllSchedulesConditions, page: int, pageSize: int):
-    schedules = (Schedule.objects.filter(name__icontains=conditions.search)
-                 | Schedule.objects.filter(comment__icontains=conditions.search)
-                 | Schedule.objects.filter(times__comment__icontains=conditions.search))
+def findAllSchedules(userId: int, conditions: FindAllSchedulesConditions, page: int, pageSize: int):
+    schedules = Schedule.objects.filter(user_id=userId)
+    schedules = (schedules.filter(name__icontains=conditions.search)
+                 | schedules.filter(comment__icontains=conditions.search)
+                 | schedules.filter(times__comment__icontains=conditions.search))
     if conditions.dateRange is not None:
         schedules = (schedules.filter(times__start__isnull=True,
                                       times__end__gte=datetime.fromtimestamp(conditions.dateRange[0] / 1000).astimezone(
                                           tz.gettz('UTC')).isoformat(),
-                                      times__end__lte=datetime.combine(datetime.fromtimestamp(conditions.dateRange[1] / 1000), datetime.max.time())
+                                      times__end__lte=datetime.combine(
+                                          datetime.fromtimestamp(conditions.dateRange[1] / 1000), datetime.max.time())
                                       .astimezone(tz.gettz('UTC')).isoformat())
                      | schedules.filter(times__start__isnull=False,
                                         times__start__gte=datetime.fromtimestamp(
                                             conditions.dateRange[0] / 1000).astimezone(
                                             tz.gettz('UTC')).isoformat(),
-                                        times__end__lte=datetime.combine(datetime.fromtimestamp(conditions.dateRange[1] / 1000), datetime.max.time())
+                                        times__end__lte=datetime.combine(
+                                            datetime.fromtimestamp(conditions.dateRange[1] / 1000), datetime.max.time())
                                         .astimezone(tz.gettz('UTC')).isoformat()))
         schedules = schedules.filter(times__deleted=False)
     schedules = schedules.distinct()
@@ -302,22 +313,22 @@ def findAllSchedules(conditions: FindAllSchedulesConditions, page: int, pageSize
     }
 
 
-def updateDoneById(id: str, done: bool):
-    time = Time.objects.get(id=id)
+def updateDoneById(userId: int, id: str, done: bool):
+    time = Time.objects.get(schedule__user_id=userId, id=id)
     time.done = done
     time.save()
     return time.to_dict()
 
 
-def updateStarById(id: str, star: bool):
-    schedule = Schedule.objects.get(id=id)
+def updateStarById(userId: int, id: str, star: bool):
+    schedule = Schedule.objects.get(schedule__user_id=userId, id=id)
     schedule.star = star
     schedule.save()
     return schedule.to_dict()
 
 
-def createRecord(scheduleId: str, startTime: str, endTime: str):
+def createRecord(scheduleId: str, userId: int, startTime: str, endTime: str):
     print(startTime, endTime)
-    record = Record(id=uuid.uuid4().hex, schedule_id=scheduleId, start=startTime, end=endTime)
+    record = Record(id=uuid.uuid4().hex, schedule_id=scheduleId, schedule__user_id=userId, start=startTime, end=endTime)
     record.save()
     return record.to_dict()

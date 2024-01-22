@@ -1,10 +1,9 @@
 from user.models import ScheduleUser
 
 
-def getProfileById(id: int):
-    user = ScheduleUser.objects.get(id=id)
+def getProfileById(userId: int):
+    user = ScheduleUser.objects.get(id=userId)
     return {
-        'id': user.id,
         'email': user.email,
         'first_name': user.first_name,
         'last_name': user.last_name,

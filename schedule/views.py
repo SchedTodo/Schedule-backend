@@ -11,127 +11,128 @@ from . import service
 
 
 # Create your views here.
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def createSchedule(request):
+@require_http_methods(["POST"])
+def createSchedule(request, userId):
     data = json.loads(request.body)
     name, rTimeCode, comment, exTimeCode = data['name'], data['rTime'], data['comment'], data['exTime']
-    return service.createSchedule(name, rTimeCode, comment, exTimeCode)
+    return service.createSchedule(userId, name, rTimeCode, comment, exTimeCode)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def updateScheduleById(request):
+@require_http_methods(["POST"])
+def updateScheduleById(request, userId):
     data = json.loads(request.body)
     id, name, rTimeCode, comment, exTimeCode = data['id'], data['name'], data['rTime'], data['comment'], data['exTime']
-    return service.updateScheduleById(id, name, rTimeCode, comment, exTimeCode)
+    return service.updateScheduleById(id, userId, name, rTimeCode, comment, exTimeCode)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def findEventsBetween(request):
+@require_http_methods(["POST"])
+def findEventsBetween(request, userId):
     data = json.loads(request.body)
     start, end = data['start'], data['end']
-    return service.findEventsBetween(start, end)
+    return service.findEventsBetween(userId, start, end)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def findAllTodos(request):
-    return service.findAllTodos()
-
-
 @require_http_methods(["POST"])
+def findAllTodos(request, userId):
+    return service.findAllTodos(userId)
+
+
 @errorHandler
 @checkToken
-def findScheduleById(request):
+@require_http_methods(["POST"])
+def findScheduleById(request, userId):
     data = json.loads(request.body)
     id = data['id']
-    return service.findScheduleById(id)
+    return service.findScheduleById(id, userId)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def findTimesByScheduleId(request):
+@require_http_methods(["POST"])
+def findTimesByScheduleId(request, userId):
     data = json.loads(request.body)
     scheduleId = data['scheduleId']
-    return service.findTimesByScheduleId(scheduleId)
+    return service.findTimesByScheduleId(scheduleId, userId)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def findRecordsByScheduleId(request):
+@require_http_methods(["POST"])
+def findRecordsByScheduleId(request, userId):
     data = json.loads(request.body)
     scheduleId = data['scheduleId']
-    return service.findRecordsByScheduleId(scheduleId)
+    return service.findRecordsByScheduleId(scheduleId, userId)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def deleteScheduleById(request):
+@require_http_methods(["POST"])
+def deleteScheduleById(request, userId):
     data = json.loads(request.body)
     id = data['id']
-    return service.deleteScheduleById(id)
+    return service.deleteScheduleById(id, userId)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def deleteTimeByIds(request):
+@require_http_methods(["POST"])
+def deleteTimeByIds(request, userId):
     data = json.loads(request.body)
     ids = data['ids']
-    return service.deleteTimeByIds(ids)
+    return service.deleteTimeByIds(userId, ids)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def updateTimeCommentById(request):
+@require_http_methods(["POST"])
+def updateTimeCommentById(request, userId):
     data = json.loads(request.body)
     id, comment = data['id'], data['comment']
-    return service.updateTimeCommentById(id, comment)
+    return service.updateTimeCommentById(userId, id, comment)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def findAllSchedules(request):
+@require_http_methods(["POST"])
+def findAllSchedules(request, userId):
     data = json.loads(request.body)
     conditions, page, pageSize = data['conditions'], data['page'], data['pageSize']
     conditions = FindAllSchedulesConditions(conditions)
-    return service.findAllSchedules(conditions, page, pageSize)
+    return service.findAllSchedules(userId, conditions, page, pageSize)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def updateDoneById(request):
+@require_http_methods(["POST"])
+def updateDoneById(request, userId):
     data = json.loads(request.body)
     id, done = data['id'], data['done']
-    return service.updateDoneById(id, done)
+    return service.updateDoneById(userId, id, done)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def updateStarById(request):
+@require_http_methods(["POST"])
+def updateStarById(request, userId):
     data = json.loads(request.body)
     id, star = data['id'], data['star']
-    return service.updateStarById(id, star)
+    return service.updateStarById(userId, id, star)
 
 
-@require_http_methods(["POST"])
 @errorHandler
 @checkToken
-def createRecord(request):
+@require_http_methods(["POST"])
+def createRecord(request, userId):
     data = json.loads(request.body)
     scheduleId, startTime, endTime = data['scheduleId'], data['startTime'], data['endTime']
-    return service.createRecord(scheduleId, startTime, endTime)
+    return service.createRecord(scheduleId, userId, startTime, endTime)
+
 

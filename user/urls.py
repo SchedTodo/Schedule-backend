@@ -7,5 +7,5 @@ app_name = 'user'
 urlpatterns = [
     path('googleLogin/', views.googleLogin, name="googleLogin"),
     path('googleCallback/', views.googleCallback, name="googleCallback"),
-    path('getProfileById/', views.getProfileById, name='getProfile'),
+    path('getProfile/', views.getProfile, name='getProfile'),
 ]

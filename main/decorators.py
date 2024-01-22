@@ -1,6 +1,8 @@
 from django.http import JsonResponse
 from functools import wraps
+from django.core.cache import cache
 
+from user.models import ScheduleUser
 
 TOKEN_HEADER = 'x_auth_token'
 
@@ -12,7 +14,11 @@ def checkToken(viewFunc):
         if not token:
             return JsonResponse({'error': 'No token provided'}, status=401)
 
-        return viewFunc(request, *args, **kwargs)
+        userId = cache.get(token)
+        if not userId:
+            return JsonResponse({'error': 'Invalid token'}, status=401)
+
+        return viewFunc(request, userId, *args, **kwargs)
 
     return _wrappedView
 
@@ -29,6 +35,8 @@ def errorHandler(viewFunc: callable):
             return JsonResponse({'success': True, 'data': res}, status=200)
         except ValueError as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=200)
+        except ScheduleUser.DoesNotExist as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=401)
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
