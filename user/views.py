@@ -13,6 +13,7 @@ from django.http import HttpResponse
 from main.decorators import errorHandler, checkToken
 from main.settings import BASE_DIR
 from main.consumer import send_message_to_user
+from utils.auth import getToken
 from . import service
 from .models import ScheduleUser
 
@@ -91,6 +92,14 @@ def googleCallback(request):
         loop.close()
         asyncio.set_event_loop(None)  # 重置事件循环
 
+    return HttpResponse(status=200)
+
+
+@errorHandler
+@require_http_methods(["POST"])
+def logout(request):
+    token = getToken(request)
+    cache.delete(token)
     return HttpResponse(status=200)
 
 

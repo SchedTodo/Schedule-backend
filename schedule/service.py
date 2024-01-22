@@ -6,13 +6,12 @@ from django.core.paginator import Paginator
 from dateutil import tz
 from dateutil.relativedelta import relativedelta
 from django.db import transaction
-from django.db.models import Model
+from django.db.models import F
 
 from schedule.models import Schedule, Time, Record, Base
 from schedule.timeCodeParser import parseTimeCodes
 from schedule.timeCodeParserTypes import TimeRange, EventType
 from schedule.userSettings import getSettingsByPath
-from user.models import ScheduleUser
 from utils.utils import difference, union
 from utils.vo import EventBriefVO, TodoBriefVO, ScheduleBriefVO
 
@@ -22,21 +21,27 @@ def createSchedule(userId: int, name: str, timeCodes: str, comment: str, exTimeC
     parseRes = parseTimeCodes(timeCodes, exTimeCodes)
     eventType, rTimes, exTimes, rruleStr, code, exCode = parseRes.eventType, parseRes.rTimes, parseRes.exTimes, parseRes.rruleStr, parseRes.rTimeCodes, parseRes.exTimeCodes
 
-    schedule = Schedule(id=uuid.uuid4().hex, user_id=userId, type=eventType, name=name, rrules=rruleStr, rTimeCode=code,
-                        exTimeCode=exCode, comment=comment)
+    schedule = Schedule(id=uuid.uuid4(), user_id=userId, type=eventType, name=name, rrules=rruleStr, rTimeCode=code,
+                        exTimeCode=exCode, comment=comment,
+                        created=datetime.now().astimezone(tz.gettz('UTC')).isoformat(),
+                        updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
     schedule.save()
 
-    for time in rTimes:
-        time = Time(id=uuid.uuid4().hex, schedule_id=schedule.id, start=time.start, end=time.end,
-                    startMark=time.startMark,
-                    endMark=time.endMark, done=False, deleted=False)
-        time.save()
+    allTimes = {
+        'rTimes': rTimes,
+        'exTimes': exTimes
+    }
 
-    for time in exTimes:
-        time = Time(id=uuid.uuid4().hex, schedule_id=schedule.id, start=time.start, end=time.end,
-                    startMark=time.startMark,
-                    endMark=time.endMark, done=False, deleted=True)
-        time.save()
+    for key, value in allTimes.items():
+        for time in rTimes:
+            time = Time(id=uuid.uuid4(), schedule_id=schedule.id,
+                        excluded=False if key == 'rTimes' else True,
+                        start=time.start, end=time.end,
+                        startMark=time.startMark,
+                        endMark=time.endMark, done=False,
+                        created=datetime.now().astimezone(tz.gettz('UTC')).isoformat(),
+                        updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
+            time.save()
 
     return schedule.to_dict()
 
@@ -67,7 +72,7 @@ def updateScheduleById(id: str, userId: int, name: str, timeCodes: str, comment:
     if oldSchedule.rTimeCode == code and oldSchedule.exTimeCode == exCode:
         return oldSchedule.to_dict()
 
-    # 获取所有和该 Schedule 相关的时间片
+    # 获取所有和该 Schedule 相关的时间片, Schedule 已经限定了 user_id，所以不需要再限定
     times = Time.objects.filter(schedule__id=id)
 
     def equal(time1: TimeRange | Time, time3: TimeRange | Time):
@@ -99,15 +104,19 @@ def updateScheduleById(id: str, userId: int, name: str, timeCodes: str, comment:
                     if equal(time, _t):
                         t = _t
                         break
-                if key == 'rTimes':
-                    t.deleted = False
-                else:
-                    t.deleted = True
+                t.excluded = False if key == 'rTimes' else True
+                t.deleted = False
+                t.version += 1
+                t.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
                 t.save()
             # 如果没有创建过，创建新的时间片
             else:
-                t = Time(id=uuid.uuid4().hex, schedule_id=schedule.id, start=time.start, end=time.end,
-                         startMark=time.startMark, endMark=time.endMark, done=False, deleted=key == 'exTimes')
+                t = Time(id=uuid.uuid4(), schedule_id=schedule.id,
+                         excluded=False if key == 'rTimes' else True,
+                         start=time.start, end=time.end,
+                         startMark=time.startMark, endMark=time.endMark, done=False,
+                         created=datetime.now().astimezone(tz.gettz('UTC')).isoformat(),
+                         updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
                 t.save()
 
     # 不包括在 rTimes 和 exTimes 的内容要彻底删除，只标记 deleted 为 true 会导致 exTime 多出意外值
@@ -116,6 +125,8 @@ def updateScheduleById(id: str, userId: int, name: str, timeCodes: str, comment:
     # 需要删除的时间片
     for time in toDel:
         time.deleted = True
+        time.version += 1
+        time.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
         time.save()
 
     return schedule.to_dict()
@@ -124,6 +135,7 @@ def updateScheduleById(id: str, userId: int, name: str, timeCodes: str, comment:
 def findEventsBetween(userId: int, start: str, end: str):
     times = (Time.objects.filter(
         schedule__user_id=userId,
+        excluded=False,
         start__isnull=False,
         start__gte=datetime.fromisoformat(start).astimezone(tz.gettz('UTC')).isoformat(),
         end__lte=datetime.fromisoformat(end).astimezone(tz.gettz('UTC')).isoformat(),
@@ -146,6 +158,7 @@ def findAllTodos(userId: int):
     for todo in todos:
         time = (Time.objects.filter(
             schedule__id=todo.id,
+            excluded=False,
             # 每天的 start time 作为逻辑上的次日开始时间，未达次日 start time 就过期的 todo 显示 expired，而不是直接消失
             end__gte=(datetime.now()
                       + relativedelta(
@@ -161,6 +174,7 @@ def findAllTodos(userId: int):
         schedule__user_id=userId,
         schedule__type=EventType.TODO,
         schedule__deleted=False,
+        excluded=False,
         # 每天的 start time 作为逻辑上的次日开始时间，未达次日 start time 就过期的 todo 显示 expired，而不是直接消失
         end__gte=(datetime.now()
                   + relativedelta(
@@ -192,7 +206,7 @@ def findScheduleById(id: str, userId: int):
 
 
 def findTimesByScheduleId(scheduleId: str, userId: int):
-    times = Time.objects.filter(schedule_id=scheduleId, schedule__user_id=userId, deleted=False)
+    times = Time.objects.filter(schedule_id=scheduleId, schedule__user_id=userId, excluded=False, deleted=False)
     times = list(map(lambda time: time.to_dict(), times))
     return times
 
@@ -208,17 +222,19 @@ def deleteScheduleById(id: str, userId: int):
     # 级联更新 deleted = true
     schedule = Schedule.objects.get(id=id, user_id=userId)
     schedule.deleted = True
+    schedule.version += 1
+    schedule.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
     schedule.save()
-    Time.objects.filter(schedule__id=id).update(deleted=True)
-    Record.objects.filter(schedule__id=id).update(deleted=True)
+    Time.objects.filter(schedule__id=id).update(deleted=True, version=F('version') + 1,
+                                                updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
+    Record.objects.filter(schedule__id=id).update(deleted=True, version=F('version') + 1,
+                                                  updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
     return schedule.to_dict()
 
 
 @transaction.atomic
 def deleteTimeById(userId: int, id: str):
-    time = Time.objects.get(schedule__user_id=userId, id=id)
-    time.deleted = True
-    time.save()
+    time = Time.objects.get(schedule__user_id=userId, id=id).update(excluded=True)
 
     startTime: datetime
     endTime = datetime.fromisoformat(time.end).astimezone(tz.gettz('UTC'))
@@ -236,6 +252,8 @@ def deleteTimeById(userId: int, id: str):
     schedule = Schedule.objects.get(id=time.schedule.id, user_id=userId)
 
     schedule.exTimeCode = exTimeCode if schedule.exTimeCode == '' else f'{schedule.exTimeCode};{exTimeCode}'
+    schedule.version += 1
+    schedule.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
     schedule.save()
 
     return time.to_dict()
@@ -249,6 +267,8 @@ def deleteTimeByIds(userId: int, ids: list[str]):
 def updateTimeCommentById(userId: int, id: str, comment: str):
     time = Time.objects.get(schedule__user_id=userId, id=id)
     time.comment = comment
+    time.version += 1
+    time.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
     time.save()
     return time.to_dict()
 
@@ -316,6 +336,8 @@ def findAllSchedules(userId: int, conditions: FindAllSchedulesConditions, page: 
 def updateDoneById(userId: int, id: str, done: bool):
     time = Time.objects.get(schedule__user_id=userId, id=id)
     time.done = done
+    time.version += 1
+    time.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
     time.save()
     return time.to_dict()
 
@@ -323,12 +345,87 @@ def updateDoneById(userId: int, id: str, done: bool):
 def updateStarById(userId: int, id: str, star: bool):
     schedule = Schedule.objects.get(schedule__user_id=userId, id=id)
     schedule.star = star
+    schedule.version += 1
+    schedule.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
     schedule.save()
     return schedule.to_dict()
 
 
 def createRecord(scheduleId: str, userId: int, startTime: str, endTime: str):
-    print(startTime, endTime)
-    record = Record(id=uuid.uuid4().hex, schedule_id=scheduleId, schedule__user_id=userId, start=startTime, end=endTime)
+    record = Record(id=uuid.uuid4(), schedule_id=scheduleId, schedule__user_id=userId,
+                    start=startTime, end=endTime,
+                    created=datetime.now().astimezone(tz.gettz('UTC')).isoformat(),
+                    updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
     record.save()
     return record.to_dict()
+
+
+@transaction.atomic
+def sync(userId: int, schedules: list[dict], times: list[dict], records: list[dict], syncAt: str):
+    syncAt = datetime.fromisoformat(syncAt)
+    print('sync', userId, schedules, times, records, syncAt)
+    updated = {
+        'schedules': [],
+        'times': [],
+        'records': [],
+    }
+
+    def update(server: Base, client: dict):
+        # version 表示数据是从哪个版本开始更新的
+        # version 大的覆盖 version 小的
+        # version 一样的，updated 大的覆盖 updated 小的
+        if server is None:
+            return True
+        if server.version <= client['updated']:
+            return True
+        if server.updated <= client['updated']:
+            return True
+        return False
+
+    for schedule in schedules:
+        scheduleServer = Schedule.objects.filter(id=schedule['id'], user_id=userId).first()
+        if update(scheduleServer, schedule):
+            schedule['user_id'] = userId
+            schedule['created'] = datetime.fromisoformat(schedule['created'])
+            schedule['updated'] = datetime.fromisoformat(schedule['updated'])
+            schedule['syncAt'] = syncAt
+            schedule['version'] += 1
+            Schedule.objects.update_or_create(id=schedule['id'], user_id=userId, defaults=schedule)
+            updated['schedules'].append(schedule['id'])
+
+    for time in times:
+        timeServer = Time.objects.filter(schedule__user_id=userId, id=time['id']).first()
+        if update(timeServer, time):
+            time['schedule_id'] = time.pop('scheduleId')
+            time['created'] = datetime.fromisoformat(time['created'])
+            time['updated'] = datetime.fromisoformat(time['updated'])
+            time['syncAt'] = syncAt
+            time['version'] += 1
+            Time.objects.update_or_create(schedule__user_id=userId, id=time['id'], defaults=time)
+            updated['times'].append(time['id'])
+
+    for record in records:
+        recordServer = Record.objects.filter(schedule__user_id=userId, id=record['id']).first()
+        if update(recordServer, record):
+            record['schedule_id'] = record.pop('scheduleId')
+            record['created'] = datetime.fromisoformat(record['created'])
+            record['updated'] = datetime.fromisoformat(record['updated'])
+            record['syncAt'] = syncAt
+            record['version'] += 1
+            Record.objects.update_or_create(schedule__user_id=userId, id=record['id'], defaults=record)
+            updated['records'].append(record['id'])
+
+    print('sync', userId, syncAt)
+    return updated
+
+
+def getUnSynced(userId: int, lastSyncAt: str):
+    schedules = Schedule.objects.filter(user_id=userId, updated__gt=lastSyncAt)
+    times = Time.objects.filter(schedule__user_id=userId, updated__gt=lastSyncAt)
+    records = Record.objects.filter(schedule__user_id=userId, updated__gt=lastSyncAt)
+
+    return {
+        'schedules': list(map(lambda schedule: schedule.to_dict(), schedules)),
+        'times': list(map(lambda time: time.to_dict(), times)),
+        'records': list(map(lambda record: record.to_dict(), records)),
+    }

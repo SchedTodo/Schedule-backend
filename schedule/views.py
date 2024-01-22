@@ -136,3 +136,19 @@ def createRecord(request, userId):
     return service.createRecord(scheduleId, userId, startTime, endTime)
 
 
+@errorHandler
+@checkToken
+@require_http_methods(["POST"])
+def sync(request, userId):
+    data = json.loads(request.body)
+    schedules, times, records, syncAt = data['schedules'], data['times'], data['records'], data['syncAt']
+    return service.sync(userId, schedules, times, records, syncAt)
+
+
+@errorHandler
+@checkToken
+@require_http_methods(["POST"])
+def getUnSynced(request, userId):
+    data = json.loads(request.body)
+    lastSyncAt = data['lastSyncAt']
+    return service.getUnSynced(userId, lastSyncAt)

@@ -3,14 +3,13 @@ from functools import wraps
 from django.core.cache import cache
 
 from user.models import ScheduleUser
-
-TOKEN_HEADER = 'x_auth_token'
+from utils.auth import getToken
 
 
 def checkToken(viewFunc):
     @wraps(viewFunc)
     def _wrappedView(request, *args, **kwargs):
-        token = request.META.get(f'HTTP_{TOKEN_HEADER.upper()}')
+        token = getToken(request)
         if not token:
             return JsonResponse({'error': 'No token provided'}, status=401)
 

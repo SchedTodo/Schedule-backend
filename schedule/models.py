@@ -1,12 +1,25 @@
 from django.db import models
+from user.models import ScheduleUser
 
 
-class Schedule(models.Model):
+class Base(models.Model):
+    id = models.CharField(primary_key=True, max_length=255)
+    deleted = models.BooleanField(default=False)
+    created = models.CharField(max_length=255)
+    updated = models.CharField(max_length=255)
+    syncAt = models.CharField(max_length=255, null=True)
+    version = models.IntegerField(default=0)
+
+    class Meta:
+        abstract = True
+
+
+class Schedule(Base):
     class ScheduleType(models.TextChoices):
         EVENT = 'event'
         TODO = 'todo'
 
-    id = models.CharField(primary_key=True, max_length=255)
+    user = models.ForeignKey(ScheduleUser, on_delete=models.CASCADE, related_name='schedules')
     type = models.CharField(choices=ScheduleType.choices, max_length=255)
     name = models.TextField()
     rrules = models.TextField()
@@ -14,9 +27,6 @@ class Schedule(models.Model):
     exTimeCode = models.TextField()
     comment = models.TextField()
     star = models.BooleanField(default=False)
-    deleted = models.BooleanField(default=False)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
@@ -24,6 +34,7 @@ class Schedule(models.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'userId': self.user_id,
             'type': self.type,
             'name': self.name,
             'rrules': self.rrules,
@@ -34,21 +45,20 @@ class Schedule(models.Model):
             'deleted': self.deleted,
             'created': self.created,
             'updated': self.updated,
+            'syncAt': self.syncAt,
+            'version': self.version,
         }
 
 
-class Time(models.Model):
-    id = models.CharField(primary_key=True, max_length=255)
+class Time(Base):
     schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, related_name='times')
+    excluded = models.BooleanField(default=False)
     start = models.CharField(max_length=255, null=True)
     end = models.CharField(max_length=255)
     startMark = models.CharField(max_length=255)
     endMark = models.CharField(max_length=255)
     comment = models.CharField(max_length=255, default='')
     done = models.BooleanField(default=False)
-    deleted = models.BooleanField(default=False)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f'{self.start}-{self.end}'
@@ -56,7 +66,8 @@ class Time(models.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'schedule_id': self.schedule_id,
+            'scheduleId': self.schedule_id,
+            'excluded': self.excluded,
             'start': self.start,
             'end': self.end,
             'startMark': self.startMark,
@@ -66,17 +77,15 @@ class Time(models.Model):
             'deleted': self.deleted,
             'created': self.created,
             'updated': self.updated,
+            'syncAt': self.syncAt,
+            'version': self.version,
         }
 
 
-class Record(models.Model):
-    id = models.CharField(primary_key=True, max_length=255)
+class Record(Base):
     schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, related_name='record')
     start = models.CharField(max_length=255)
     end = models.CharField(max_length=255)
-    deleted = models.BooleanField(default=False)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f'{self.start}-{self.end}'
@@ -84,10 +93,12 @@ class Record(models.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'schedule_id': self.schedule_id,
+            'scheduleId': self.schedule_id,
             'start': self.start,
             'end': self.end,
             'deleted': self.deleted,
             'created': self.created,
             'updated': self.updated,
+            'syncAt': self.syncAt,
+            'version': self.version,
         }

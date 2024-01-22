@@ -19,4 +19,6 @@ urlpatterns = [
     path('updateDoneById/', views.updateDoneById, name='updateDoneById'),
     path('updateStarById/', views.updateStarById, name='updateStarById'),
     path('createRecord/', views.createRecord, name='createRecord'),
+    path('sync/', views.sync, name='sync'),
+    path('getUnSynced/', views.getUnSynced, name='getUnSynced'),
 ]
