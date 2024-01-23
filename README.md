@@ -26,3 +26,8 @@ python manage.py startapp app_name
 python manage.py runserver
 daphne -p 8000 main.asgi:application
 ```
+
+### 测试
+```bash
+python manage.py test
+```

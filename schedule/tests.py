@@ -4,11 +4,11 @@ from dateutil.rrule import rrule, DAILY, MONTHLY, YEARLY, WEEKLY, MO, TU, WE, TH
 from dateutil.tz import tz
 from dateutil.relativedelta import relativedelta
 from django.test import TestCase
-from src.schedule.timeCodeParser import parseDateRange, parseTimeRange, parseFreq, parseBy, parseTimeCodes
-from src.schedule.timeCodeParserTypes import (EventType, DateRangeObject, TimeRangeObject, TimeUnit, TimeRange,
+from schedule.timeCodeParser import parseDateRange, parseTimeRange, parseFreq, parseBy, parseTimeCodes
+from schedule.timeCodeParserTypes import (EventType, DateRangeObject, TimeRangeObject, TimeUnit, TimeRange,
                                               FreqObject, ByObject,
                                               TimeCodeLex, TimeCodeSem, TimeCodeParseResult, TimeCodeDao, DateUnit)
-from src.schedule.userSettings import getSettingsByPath
+from schedule.userSettings import getSettingsByPath
 
 
 # Create your tests here.
