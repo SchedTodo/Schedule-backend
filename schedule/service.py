@@ -13,6 +13,7 @@ from schedule.timeCodeParser import parseTimeCodes
 from schedule.timeCodeParserTypes import TimeRange, EventType
 from schedule.userSettings import getSettingsByPath
 from utils.utils import difference, union
+from utils.timeZone import isoformat
 from utils.vo import EventBriefVO, TodoBriefVO, ScheduleBriefVO
 
 
@@ -23,8 +24,8 @@ def createSchedule(userId: int, name: str, timeCodes: str, comment: str, exTimeC
 
     schedule = Schedule(id=uuid.uuid4(), user_id=userId, type=eventType, name=name, rrules=rruleStr, rTimeCode=code,
                         exTimeCode=exCode, comment=comment,
-                        created=datetime.now().astimezone(tz.gettz('UTC')).isoformat(),
-                        updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
+                        created=isoformat(datetime.now().astimezone(tz.gettz('UTC'))),
+                        updated=isoformat(datetime.now().astimezone(tz.gettz('UTC'))))
     schedule.save()
 
     allTimes = {
@@ -33,14 +34,14 @@ def createSchedule(userId: int, name: str, timeCodes: str, comment: str, exTimeC
     }
 
     for key, value in allTimes.items():
-        for time in rTimes:
+        for time in value:
             time = Time(id=uuid.uuid4(), schedule_id=schedule.id,
                         excluded=False if key == 'rTimes' else True,
                         start=time.start, end=time.end,
                         startMark=time.startMark,
                         endMark=time.endMark, done=False,
-                        created=datetime.now().astimezone(tz.gettz('UTC')).isoformat(),
-                        updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
+                        created=isoformat(datetime.now().astimezone(tz.gettz('UTC'))),
+                        updated=isoformat(datetime.now().astimezone(tz.gettz('UTC'))))
             time.save()
 
     return schedule.to_dict()
@@ -66,6 +67,7 @@ def updateScheduleById(id: str, userId: int, name: str, timeCodes: str, comment:
     schedule.exTimeCode = exCode
     schedule.comment = comment
     schedule.version += 1
+    schedule.updated = isoformat(datetime.now().astimezone(tz.gettz('UTC')))
     schedule.save()
 
     # 如果时间片没有变化，直接返回
@@ -107,7 +109,7 @@ def updateScheduleById(id: str, userId: int, name: str, timeCodes: str, comment:
                 t.excluded = False if key == 'rTimes' else True
                 t.deleted = False
                 t.version += 1
-                t.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
+                t.updated = isoformat(datetime.now().astimezone(tz.gettz('UTC')))
                 t.save()
             # 如果没有创建过，创建新的时间片
             else:
@@ -115,8 +117,8 @@ def updateScheduleById(id: str, userId: int, name: str, timeCodes: str, comment:
                          excluded=False if key == 'rTimes' else True,
                          start=time.start, end=time.end,
                          startMark=time.startMark, endMark=time.endMark, done=False,
-                         created=datetime.now().astimezone(tz.gettz('UTC')).isoformat(),
-                         updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
+                         created=isoformat(datetime.now().astimezone(tz.gettz('UTC'))),
+                         updated=isoformat(datetime.now().astimezone(tz.gettz('UTC'))))
                 t.save()
 
     # 不包括在 rTimes 和 exTimes 的内容要彻底删除，只标记 deleted 为 true 会导致 exTime 多出意外值
@@ -126,7 +128,7 @@ def updateScheduleById(id: str, userId: int, name: str, timeCodes: str, comment:
     for time in toDel:
         time.deleted = True
         time.version += 1
-        time.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
+        time.updated = isoformat(datetime.now().astimezone(tz.gettz('UTC')))
         time.save()
 
     return schedule.to_dict()
@@ -137,8 +139,8 @@ def findEventsBetween(userId: int, start: str, end: str):
         schedule__user_id=userId,
         excluded=False,
         start__isnull=False,
-        start__gte=datetime.fromisoformat(start).astimezone(tz.gettz('UTC')).isoformat(),
-        end__lte=datetime.fromisoformat(end).astimezone(tz.gettz('UTC')).isoformat(),
+        start__gte=isoformat(datetime.fromisoformat(start).astimezone(tz.gettz('UTC'))),
+        end__lte=isoformat(datetime.fromisoformat(end).astimezone(tz.gettz('UTC'))),
         done=False,
         deleted=False)
              .order_by('start'))
@@ -160,11 +162,11 @@ def findAllTodos(userId: int):
             schedule__id=todo.id,
             excluded=False,
             # 每天的 start time 作为逻辑上的次日开始时间，未达次日 start time 就过期的 todo 显示 expired，而不是直接消失
-            end__gte=(datetime.now()
-                      + relativedelta(
+            end__gte=isoformat((datetime.now()
+                                + relativedelta(
                         hour=getSettingsByPath('preferences.startTime.hour'),
                         minute=getSettingsByPath('preferences.startTime.minute')))
-            .astimezone(tz.gettz('UTC')).isoformat(),
+                               .astimezone(tz.gettz('UTC'))),
             deleted=False)
                 .order_by('end').first())
         if time is not None:
@@ -176,16 +178,17 @@ def findAllTodos(userId: int):
         schedule__deleted=False,
         excluded=False,
         # 每天的 start time 作为逻辑上的次日开始时间，未达次日 start time 就过期的 todo 显示 expired，而不是直接消失
-        end__gte=(datetime.now()
-                  + relativedelta(
+        end__gte=isoformat((datetime.now()
+                            + relativedelta(
                     hour=getSettingsByPath('preferences.startTime.hour'),
                     minute=getSettingsByPath('preferences.startTime.minute')))
-        .astimezone(tz.gettz('UTC')).isoformat(),
-        end__lte=(datetime.now()
-                  + relativedelta(days=1)
-                  + relativedelta(
+                           .astimezone(tz.gettz('UTC'))),
+        end__lte=isoformat((datetime.now()
+                            + relativedelta(days=1)
+                            + relativedelta(
                     hour=getSettingsByPath('preferences.startTime.hour'),
-                    minute=getSettingsByPath('preferences.startTime.minute'))),
+                    minute=getSettingsByPath('preferences.startTime.minute')))
+                           .astimezone(tz.gettz('UTC'))),
         deleted=False)
              .order_by('end'))
 
@@ -223,12 +226,12 @@ def deleteScheduleById(id: str, userId: int):
     schedule = Schedule.objects.get(id=id, user_id=userId)
     schedule.deleted = True
     schedule.version += 1
-    schedule.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
+    schedule.updated = isoformat(datetime.now().astimezone(tz.gettz('UTC')))
     schedule.save()
     Time.objects.filter(schedule__id=id).update(deleted=True, version=F('version') + 1,
-                                                updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
+                                                updated=isoformat(datetime.now().astimezone(tz.gettz('UTC'))))
     Record.objects.filter(schedule__id=id).update(deleted=True, version=F('version') + 1,
-                                                  updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
+                                                  updated=isoformat(datetime.now().astimezone(tz.gettz('UTC'))))
     return schedule.to_dict()
 
 
@@ -253,7 +256,7 @@ def deleteTimeById(userId: int, id: str):
 
     schedule.exTimeCode = exTimeCode if schedule.exTimeCode == '' else f'{schedule.exTimeCode};{exTimeCode}'
     schedule.version += 1
-    schedule.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
+    schedule.updated = isoformat(datetime.now().astimezone(tz.gettz('UTC')))
     schedule.save()
 
     return time.to_dict()
@@ -268,7 +271,7 @@ def updateTimeCommentById(userId: int, id: str, comment: str):
     time = Time.objects.get(schedule__user_id=userId, id=id)
     time.comment = comment
     time.version += 1
-    time.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
+    time.updated = isoformat(datetime.now().astimezone(tz.gettz('UTC')))
     time.save()
     return time.to_dict()
 
@@ -296,18 +299,17 @@ def findAllSchedules(userId: int, conditions: FindAllSchedulesConditions, page: 
                  | schedules.filter(times__comment__icontains=conditions.search))
     if conditions.dateRange is not None:
         schedules = (schedules.filter(times__start__isnull=True,
-                                      times__end__gte=datetime.fromtimestamp(conditions.dateRange[0] / 1000).astimezone(
-                                          tz.gettz('UTC')).isoformat(),
-                                      times__end__lte=datetime.combine(
+                                      times__end__gte=isoformat(datetime.fromtimestamp(
+                                          conditions.dateRange[0] / 1000).astimezone(tz.gettz('UTC'))),
+                                      times__end__lte=isoformat(datetime.combine(
                                           datetime.fromtimestamp(conditions.dateRange[1] / 1000), datetime.max.time())
-                                      .astimezone(tz.gettz('UTC')).isoformat())
+                                                                .astimezone(tz.gettz('UTC'))))
                      | schedules.filter(times__start__isnull=False,
-                                        times__start__gte=datetime.fromtimestamp(
-                                            conditions.dateRange[0] / 1000).astimezone(
-                                            tz.gettz('UTC')).isoformat(),
-                                        times__end__lte=datetime.combine(
+                                        times__start__gte=isoformat(datetime.fromtimestamp(
+                                            conditions.dateRange[0] / 1000).astimezone(tz.gettz('UTC'))),
+                                        times__end__lte=isoformat(datetime.combine(
                                             datetime.fromtimestamp(conditions.dateRange[1] / 1000), datetime.max.time())
-                                        .astimezone(tz.gettz('UTC')).isoformat()))
+                                                                  .astimezone(tz.gettz('UTC')))))
         schedules = schedules.filter(times__deleted=False)
     schedules = schedules.distinct()
     if conditions.type is not None:
@@ -337,33 +339,32 @@ def updateDoneById(userId: int, id: str, done: bool):
     time = Time.objects.get(schedule__user_id=userId, id=id)
     time.done = done
     time.version += 1
-    time.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
+    time.updated = isoformat(datetime.now().astimezone(tz.gettz('UTC')))
     time.save()
     return time.to_dict()
 
 
 def updateStarById(userId: int, id: str, star: bool):
-    schedule = Schedule.objects.get(schedule__user_id=userId, id=id)
+    schedule = Schedule.objects.get(user_id=userId, id=id)
     schedule.star = star
     schedule.version += 1
-    schedule.updated = datetime.now().astimezone(tz.gettz('UTC')).isoformat()
+    schedule.updated = isoformat(datetime.now().astimezone(tz.gettz('UTC')))
     schedule.save()
     return schedule.to_dict()
 
 
 def createRecord(scheduleId: str, userId: int, startTime: str, endTime: str):
-    record = Record(id=uuid.uuid4(), schedule_id=scheduleId, schedule__user_id=userId,
+    record = Record(id=uuid.uuid4(), schedule_id=scheduleId,
                     start=startTime, end=endTime,
-                    created=datetime.now().astimezone(tz.gettz('UTC')).isoformat(),
-                    updated=datetime.now().astimezone(tz.gettz('UTC')).isoformat())
+                    created=isoformat(datetime.now().astimezone(tz.gettz('UTC'))),
+                    updated=isoformat(datetime.now().astimezone(tz.gettz('UTC'))))
     record.save()
     return record.to_dict()
 
 
 @transaction.atomic
 def sync(userId: int, schedules: list[dict], times: list[dict], records: list[dict], syncAt: str):
-    syncAt = datetime.fromisoformat(syncAt)
-    print('sync', userId, schedules, times, records, syncAt)
+    print(schedules, times, records, syncAt)
     updated = {
         'schedules': [],
         'times': [],
@@ -376,7 +377,7 @@ def sync(userId: int, schedules: list[dict], times: list[dict], records: list[di
         # version 一样的，updated 大的覆盖 updated 小的
         if server is None:
             return True
-        if server.version <= client['updated']:
+        if server.version <= client['version']:
             return True
         if server.updated <= client['updated']:
             return True
@@ -386,8 +387,6 @@ def sync(userId: int, schedules: list[dict], times: list[dict], records: list[di
         scheduleServer = Schedule.objects.filter(id=schedule['id'], user_id=userId).first()
         if update(scheduleServer, schedule):
             schedule['user_id'] = userId
-            schedule['created'] = datetime.fromisoformat(schedule['created'])
-            schedule['updated'] = datetime.fromisoformat(schedule['updated'])
             schedule['syncAt'] = syncAt
             schedule['version'] += 1
             Schedule.objects.update_or_create(id=schedule['id'], user_id=userId, defaults=schedule)
@@ -397,8 +396,6 @@ def sync(userId: int, schedules: list[dict], times: list[dict], records: list[di
         timeServer = Time.objects.filter(schedule__user_id=userId, id=time['id']).first()
         if update(timeServer, time):
             time['schedule_id'] = time.pop('scheduleId')
-            time['created'] = datetime.fromisoformat(time['created'])
-            time['updated'] = datetime.fromisoformat(time['updated'])
             time['syncAt'] = syncAt
             time['version'] += 1
             Time.objects.update_or_create(schedule__user_id=userId, id=time['id'], defaults=time)
@@ -408,14 +405,11 @@ def sync(userId: int, schedules: list[dict], times: list[dict], records: list[di
         recordServer = Record.objects.filter(schedule__user_id=userId, id=record['id']).first()
         if update(recordServer, record):
             record['schedule_id'] = record.pop('scheduleId')
-            record['created'] = datetime.fromisoformat(record['created'])
-            record['updated'] = datetime.fromisoformat(record['updated'])
             record['syncAt'] = syncAt
             record['version'] += 1
             Record.objects.update_or_create(schedule__user_id=userId, id=record['id'], defaults=record)
             updated['records'].append(record['id'])
 
-    print('sync', userId, syncAt)
     return updated
 
 

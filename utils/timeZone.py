@@ -47,3 +47,15 @@ def isValidTimeZone(timeZone: str):
         return True
     except:
         return False
+
+
+def isoformat(time: datetime) -> str:
+    """
+    Convert the given time to ISO format.
+
+    :param time: The time to convert.
+    :type time: datetime
+    :return: The ISO format time.
+    :rtype: str
+    """
+    return time.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + 'Z'
