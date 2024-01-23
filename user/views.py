@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import secrets
+import uuid
 
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
@@ -21,7 +22,6 @@ from .models import ScheduleUser
 # Create your views here.
 def googleLogin(request):
     uid = request.GET.get('uid')
-    cache.set(uid, 0, 60 * 10)  # 保存 10 分钟
     print('googleLogin', uid)
     # 创建 Flow 实例
     flow = Flow.from_client_secrets_file(
@@ -65,6 +65,8 @@ def googleCallback(request):
     user, created = ScheduleUser.objects.get_or_create(
         email=profile_info['email'],
         defaults={
+            'id': uuid.uuid4(),
+            'username': profile_info['email'],
             'first_name': profile_info['given_name'],
             'last_name': profile_info['family_name'],
             'profile_image_url': profile_info['picture'],
@@ -82,8 +84,7 @@ def googleCallback(request):
                 uid,
                 Apis.LOGIN,
                 {
-                    'token': token,
-                    'id': user.id
+                    'token': token
                 }
             ))
     finally:

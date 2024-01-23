@@ -1,3 +1,4 @@
+
 from django.contrib.auth.base_user import BaseUserManager
 from django.db import models
 from django.contrib.auth.models import AbstractUser
@@ -7,11 +8,11 @@ from django.utils import timezone
 # Create your models here.
 
 class ScheduleUserManager(BaseUserManager):
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, id, email, password=None, **extra_fields):
         if not email:
             raise ValueError('The Email must be set')
         email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+        user = self.model(id=id, email=email, username=email, **extra_fields)
         user.set_password(password)
         user.save()
         return user
@@ -25,6 +26,7 @@ class ScheduleUserManager(BaseUserManager):
 
 
 class ScheduleUser(AbstractUser):
+    id = models.CharField(primary_key=True, max_length=255)
     email = models.EmailField(unique=True)
     profile_image_url = models.URLField(blank=True, null=True)
     locale = models.CharField(max_length=255, blank=True, null=True)
