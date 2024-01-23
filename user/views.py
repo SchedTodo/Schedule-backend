@@ -12,7 +12,7 @@ from django.http import HttpResponse
 
 from main.decorators import errorHandler, checkToken
 from main.settings import BASE_DIR
-from main.consumer import send_message_to_user
+from main.consumer import send_message_to_user, Apis
 from utils.auth import getToken
 from . import service
 from .models import ScheduleUser
@@ -80,12 +80,10 @@ def googleCallback(request):
         loop.run_until_complete(
             send_message_to_user(
                 uid,
+                Apis.LOGIN,
                 {
-                    'api': 'login',
-                    'data': {
-                        'token': token,
-                        'id': user.id
-                    }
+                    'token': token,
+                    'id': user.id
                 }
             ))
     finally:
@@ -96,11 +94,11 @@ def googleCallback(request):
 
 
 @errorHandler
+@checkToken
 @require_http_methods(["POST"])
-def logout(request):
+def logout(request, userId):
     token = getToken(request)
     cache.delete(token)
-    return HttpResponse(status=200)
 
 
 @errorHandler

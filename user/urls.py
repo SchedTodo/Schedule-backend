@@ -8,4 +8,5 @@ urlpatterns = [
     path('googleLogin/', views.googleLogin, name="googleLogin"),
     path('googleCallback/', views.googleCallback, name="googleCallback"),
     path('getProfile/', views.getProfile, name='getProfile'),
+    path('logout/', views.logout, name='logout'),
 ]
