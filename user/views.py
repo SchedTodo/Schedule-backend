@@ -84,7 +84,8 @@ def googleCallback(request):
                 uid,
                 Apis.LOGIN,
                 {
-                    'token': token
+                    'token': token,
+                    'userId': user.id,
                 }
             ))
     finally:
