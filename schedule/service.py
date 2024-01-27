@@ -77,18 +77,18 @@ def updateScheduleById(id: str, userId: int, name: str, timeCodes: str, comment:
     # 获取所有和该 Schedule 相关的时间片, Schedule 已经限定了 user_id，所以不需要再限定
     times = Time.objects.filter(schedule__id=id)
 
-    def equal(time1: TimeRange | Time, time3: TimeRange | Time):
+    def equal(time1: TimeRange | Time, time2: TimeRange | Time):
         """
         两个时间片相等的条件
         """
         if time1.start is not None and time1.end is not None:
-            if datetime.fromisoformat(time1.start) != datetime.fromisoformat(time3.start):
+            if datetime.fromisoformat(time1.start) != datetime.fromisoformat(time2.start):
                 return False
-        if datetime.fromisoformat(time1.end) != datetime.fromisoformat(time3.end):
+        if datetime.fromisoformat(time1.end) != datetime.fromisoformat(time2.end):
             return False
-        if time1.startMark != time3.startMark:
+        if time1.startMark != time2.startMark:
             return False
-        if time1.endMark != time3.endMark:
+        if time1.endMark != time2.endMark:
             return False
         return True
 
@@ -143,41 +143,47 @@ def findEventsBetween(userId: int, start: str, end: str):
         end__lte=isoformat(datetime.fromisoformat(end).astimezone(tz.gettz('UTC'))),
         done=False,
         deleted=False)
-             .order_by('start'))
+             .order_by('start')
+             .values('id', 'schedule_id',
+                     'schedule__name', 'schedule__comment',
+                     'start', 'end',
+                     'startMark', 'endMark'))
     res: list[EventBriefVO] = []
     for time in times:
-        res.append(EventBriefVO(id=time.id, scheduleId=time.schedule.id, name=time.schedule.name,
-                                comment=time.schedule.comment,
-                                start=time.start, end=time.end, startMark=time.startMark,
-                                endMark=time.endMark).to_dict())
+        res.append(EventBriefVO(id=time['id'], scheduleId=time['schedule_id'],
+                                name=time['schedule__name'], comment=time['schedule__comment'],
+                                start=time['start'], end=time['end'],
+                                startMark=time['startMark'], endMark=time['endMark']).to_dict())
     return res
 
 
 def findAllTodos(userId: int):
     firstTodos: list[TodoBriefVO] = []
     todayTodos: list[TodoBriefVO] = []
-    todos = Schedule.objects.filter(user_id=userId, type=EventType.TODO, deleted=False)
+    todos = Schedule.objects.filter(user_id=userId, type=EventType.TODO, deleted=False).values('id', 'name')
     for todo in todos:
         time = (Time.objects.filter(
-            schedule__id=todo.id,
+            schedule__id=todo['id'],
             excluded=False,
-            # 每天的 start time 作为逻辑上的次日开始时间，未达次日 start time 就过期的 todo 显示 expired，而不是直接消失
+            # 每天的 start time 作为逻辑上的次日开始时间，未达次日 start time 就过期的 _todo 显示 expired，而不是直接消失
             end__gte=isoformat((datetime.now()
                                 + relativedelta(
                         hour=getSettingsByPath('preferences.startTime.hour'),
                         minute=getSettingsByPath('preferences.startTime.minute')))
                                .astimezone(tz.gettz('UTC'))),
             deleted=False)
-                .order_by('end').first())
+                .order_by('end')
+                .values('id', 'end', 'done')).first()
         if time is not None:
-            firstTodos.append(TodoBriefVO(id=time.id, scheduleId=todo.id, name=todo.name, end=time.end, done=time.done))
+            firstTodos.append(TodoBriefVO(id=time['id'], scheduleId=todo['id'],
+                                          name=todo['name'], end=time['end'], done=time['done']))
 
     times = (Time.objects.filter(
         schedule__user_id=userId,
         schedule__type=EventType.TODO,
         schedule__deleted=False,
         excluded=False,
-        # 每天的 start time 作为逻辑上的次日开始时间，未达次日 start time 就过期的 todo 显示 expired，而不是直接消失
+        # 每天的 start time 作为逻辑上的次日开始时间，未达次日 start time 就过期的 _todo 显示 expired，而不是直接消失
         end__gte=isoformat((datetime.now()
                             + relativedelta(
                     hour=getSettingsByPath('preferences.startTime.hour'),
@@ -190,12 +196,14 @@ def findAllTodos(userId: int):
                     minute=getSettingsByPath('preferences.startTime.minute')))
                            .astimezone(tz.gettz('UTC'))),
         deleted=False)
-             .order_by('end'))
+             .order_by('end')
+             .values('id', 'schedule_id', 'end', 'done'))
 
     for time in times:
-        todo = Schedule.objects.get(id=time.schedule.id, user_id=userId)  # 上面已经保证 deleted 为 false
+        todo = Schedule.objects.values('id', 'name').get(id=time['schedule_id'], user_id=userId)  # 上面已经保证 deleted 为 false
         todayTodos.append(
-            TodoBriefVO(id=time.id, scheduleId=time.schedule.id, name=todo.name, end=time.end, done=time.done))
+            TodoBriefVO(id=time['id'], scheduleId=time['schedule_id'],
+                        name=todo['name'], end=time['end'], done=time['done']))
 
     res = union(firstTodos, todayTodos, lambda a, b: a.id == b.id)
     res = list(map(lambda todo: todo.to_dict(), res))
@@ -316,7 +324,7 @@ def findAllSchedules(userId: int, conditions: FindAllSchedulesConditions, page: 
         schedules = schedules.filter(type=conditions.type)
     if conditions.star is not None:
         schedules = schedules.filter(star=conditions.star)
-    schedules = schedules.order_by('created')
+    schedules = schedules.order_by('created').values('id', 'type', 'name', 'star', 'deleted', 'created', 'updated')
 
     count = schedules.count()
 
@@ -325,9 +333,9 @@ def findAllSchedules(userId: int, conditions: FindAllSchedulesConditions, page: 
 
     res: list[ScheduleBriefVO] = []
     for schedule in schedules:
-        res.append(ScheduleBriefVO(id=schedule.id, type=schedule.type, name=schedule.name,
-                                   star=schedule.star, deleted=schedule.deleted, created=schedule.created,
-                                   updated=schedule.updated).to_dict())
+        res.append(ScheduleBriefVO(id=schedule['id'], type=schedule['type'], name=schedule['name'],
+                                   star=schedule['star'], deleted=schedule['deleted'], created=schedule['created'],
+                                   updated=schedule['updated']).to_dict())
 
     return {
         'data': res,
