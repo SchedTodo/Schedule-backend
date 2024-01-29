@@ -1,12 +1,9 @@
 import json
 
 from django.shortcuts import render
-from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from main.decorators import errorHandler, checkToken
-from .service import FindAllSchedulesConditions
-from .timeCodeParserTypes import DateUnit
 from . import service
 
 
@@ -105,7 +102,7 @@ def updateTimeCommentById(request, userId):
 def findAllSchedules(request, userId):
     data = json.loads(request.body)
     conditions, page, pageSize = data['conditions'], data['page'], data['pageSize']
-    conditions = FindAllSchedulesConditions(conditions)
+    conditions = service.FindAllSchedulesConditions(conditions)
     return service.findAllSchedules(userId, conditions, page, pageSize)
 
 

@@ -4,6 +4,7 @@ import os
 import secrets
 import uuid
 
+from django.db import transaction
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from google_auth_oauthlib.flow import Flow
@@ -39,6 +40,7 @@ def googleLogin(request):
     return redirect(authorization_url)
 
 
+@transaction.atomic
 def googleCallback(request):
     state = request.session['state']
     uid = request.session['uid']
@@ -72,7 +74,6 @@ def googleCallback(request):
             'profile_image_url': profile_info['picture'],
             'locale': profile_info['locale'],
         })
-
     token = secrets.token_hex(16)
     cache.set(token, user.id, 60 * 60 * 24 * 7)  # 保存 7 天
 

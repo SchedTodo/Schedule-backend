@@ -8,7 +8,7 @@ from schedule.timeCodeParser import parseDateRange, parseTimeRange, parseFreq, p
 from schedule.timeCodeParserTypes import (EventType, DateRangeObject, TimeRangeObject, TimeUnit, TimeRange,
                                               FreqObject, ByObject,
                                               TimeCodeLex, TimeCodeSem, TimeCodeParseResult, TimeCodeDao, DateUnit)
-from schedule.userSettings import getSettingsByPath
+from schedule.userSettings import getSettingByPath
 
 
 # Create your tests here.
@@ -156,7 +156,7 @@ class ParseTimeCodeTest(TestCase):
     def test_paseTimeCodeTimeZoneSugar1(self):
         times = parseTimeCodes('2023/7/10 22:00;', '').rTimes
         self.assertEqual(len(times), 1)
-        timeZone = getSettingsByPath('rrule.timeZone')
+        timeZone = getSettingByPath('rrule.timeZone')
         for time in times:
             tEnd = datetime.fromisoformat(time.end).astimezone(tz.gettz(timeZone))
             self.assertEqual(tEnd.strftime('%Y/%m/%d %H:%M'), '2023/07/10 22:00')
@@ -164,7 +164,7 @@ class ParseTimeCodeTest(TestCase):
     def test_paseTimeCodeTimeZoneSugar2(self):
         times = parseTimeCodes('2023/7/10-2023/7/25 22:00 by[day[1]];', '').rTimes
         self.assertEqual(len(times), 3)
-        timeZone = getSettingsByPath('rrule.timeZone')
+        timeZone = getSettingByPath('rrule.timeZone')
         day = 10
         for time in times:
             tEnd = datetime.fromisoformat(time.end).astimezone(tz.gettz(timeZone))
@@ -174,7 +174,7 @@ class ParseTimeCodeTest(TestCase):
     def test_paseTimeCodeDateRangeSugar1(self):
         times = parseTimeCodes('2023/7/10-8/10 22:00 by[day[1]];', '').rTimes
         self.assertEqual(len(times), 5)
-        timeZone = getSettingsByPath('rrule.timeZone')
+        timeZone = getSettingByPath('rrule.timeZone')
         month = 7
         day = 10
         for time in times:
@@ -188,7 +188,7 @@ class ParseTimeCodeTest(TestCase):
     def test_paseTimeCodeDateRangeSugar2(self):
         times = parseTimeCodes('2023/7/10-31 22:00 by[day[1]];', '').rTimes
         self.assertEqual(len(times), 4)
-        timeZone = getSettingsByPath('rrule.timeZone')
+        timeZone = getSettingByPath('rrule.timeZone')
         day = 10
         for time in times:
             tEnd = datetime.fromisoformat(time.end).astimezone(tz.gettz(timeZone))
@@ -198,7 +198,7 @@ class ParseTimeCodeTest(TestCase):
     def test_paseTimeCodeTimeRangeSugar1(self):
         times = parseTimeCodes('2023/7/10 22-23 by[day[1]];', '').rTimes
         self.assertEqual(len(times), 1)
-        timeZone = getSettingsByPath('rrule.timeZone')
+        timeZone = getSettingByPath('rrule.timeZone')
         for time in times:
             tStart = datetime.fromisoformat(time.start).astimezone(tz.gettz(timeZone))
             tEnd = datetime.fromisoformat(time.end).astimezone(tz.gettz(timeZone))
@@ -208,7 +208,7 @@ class ParseTimeCodeTest(TestCase):
     def test_paseTimeCodeTimeRangeSugar2(self):
         times = parseTimeCodes('2023/7/10 22-23:30 by[day[1]];', '').rTimes
         self.assertEqual(len(times), 1)
-        timeZone = getSettingsByPath('rrule.timeZone')
+        timeZone = getSettingByPath('rrule.timeZone')
         for time in times:
             tStart = datetime.fromisoformat(time.start).astimezone(tz.gettz(timeZone))
             tEnd = datetime.fromisoformat(time.end).astimezone(tz.gettz(timeZone))
@@ -218,7 +218,7 @@ class ParseTimeCodeTest(TestCase):
     def test_paseTimeCodeTimeRangeSugar3(self):
         times = parseTimeCodes('2023/7/10 22-?:? by[day[1]];', '').rTimes
         self.assertEqual(len(times), 1)
-        timeZone = getSettingsByPath('rrule.timeZone')
+        timeZone = getSettingByPath('rrule.timeZone')
         for time in times:
             tStart = datetime.fromisoformat(time.start).astimezone(tz.gettz(timeZone))
             self.assertEqual(tStart.strftime('%Y/%m/%d %H:%M'), '2023/07/10 22:00')

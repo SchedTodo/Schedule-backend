@@ -10,14 +10,14 @@ from dateutil.rrule import DAILY, WEEKLY, MONTHLY, YEARLY, weekdays, weekday, MO
 from schedule.timeCodeParserTypes import (EventType, DateRangeObject, TimeRangeObject, TimeUnit, TimeRange,
                                           FreqObject, ByObject, TimeCodeLex, TimeCodeSem, TimeCodeParseResult,
                                           TimeCodeDao, DateUnit)
-from schedule.userSettings import getSettingsByPath
+from setting.service import getSettingByPath
 from utils.timeZone import isValidTimeZone, getTimeZoneAbbrMap
 from utils.utils import intersection, difference
 
 timeZoneAbbrMap = getTimeZoneAbbrMap()
 
 
-def parseDateRange(dateRange: str) -> DateRangeObject:
+def parseDateRange(dateRange: str, settings) -> DateRangeObject:
     def parseDate(date: str) -> {int | None, int | None, int | None}:
         """
         日期格式：
@@ -45,7 +45,7 @@ def parseDateRange(dateRange: str) -> DateRangeObject:
         dtstart = parseDate(dateRange)
         res.dtstart = DateUnit(**dtstart)
     if res.dtstart.year is None:
-        now = datetime.now().astimezone(tz.gettz(getSettingsByPath('rrule.timeZone')))
+        now = datetime.now().astimezone(tz.gettz(settings['rrule.timeZone']))
         # 如果 dtstart 没有年份，且 dtstart < now，则 dtstart 的年份为下一年
         if (res.dtstart.month is not None and res.dtstart.month < now.month
                 and res.dtstart.day is not None and res.dtstart.day < now.day):
@@ -161,7 +161,7 @@ def parseFreq(freqCode: str) -> FreqObject:
 
 def getWeekdayOffset() -> int:
     weekdays = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
-    return weekdays.index(getSettingsByPath('rrule.wkst'))
+    return weekdays.index(getSettingByPath('rrule.wkst'))
 
 
 def parseBy(byCode: str) -> ByObject:
@@ -187,10 +187,10 @@ def parseBy(byCode: str) -> ByObject:
 def dateSugar(date: str) -> str:
     def repl(match):
         if match.group(0) == 'tdy':
-            return datetime.now().astimezone(tz.gettz(getSettingsByPath('rrule.timeZone'))).strftime('%Y/%m/%d')
+            return datetime.now().astimezone(tz.gettz(getSettingByPath('rrule.timeZone'))).strftime('%Y/%m/%d')
         elif match.group(0) == 'tmr':
             return (datetime.now() + relativedelta(days=1)).astimezone(
-                tz.gettz(getSettingsByPath('rrule.timeZone'))).strftime('%Y/%m/%d')
+                tz.gettz(getSettingByPath('rrule.timeZone'))).strftime('%Y/%m/%d')
 
     date = re.sub(r'tdy|tmr', repl, date)
     return date
@@ -224,7 +224,7 @@ def parseTimeCodeLex(timeCode: str) -> TimeCodeLex:
             'freq': 0,
             'by': 0,
         }
-        timeZone = getSettingsByPath('rrule.timeZone')
+        timeZone = getSettingByPath('rrule.timeZone')
         freqCode: str | None = None
         byCode: str | None = None
         while len(options) > 0:
@@ -272,7 +272,7 @@ def parseTimeCodeLex(timeCode: str) -> TimeCodeLex:
 
 
 def getWKST() -> weekday:
-    weekStart = getSettingsByPath('rrule.wkst')
+    weekStart = getSettingByPath('rrule.wkst')
     if weekStart == 'MO':
         return MO
     elif weekStart == 'TU':

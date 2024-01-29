@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'channels',
     'schedule',
     'user',
+    'setting',
 ]
 
 MIDDLEWARE = [
@@ -112,6 +113,13 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://127.0.0.1:6379/0",  # Redis 服务器地址和数据库
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    },
+    "setting": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",  # Redis 服务器地址和数据库
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
