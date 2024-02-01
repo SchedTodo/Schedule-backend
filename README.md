@@ -31,3 +31,11 @@ daphne -p 8000 main.asgi:application
 ```bash
 python manage.py test
 ```
+
+### 部署
+```bash
+docker compose up -d
+python manage.py makemigrations
+python manage.py migrate
+daphne -p 8000 main.asgi:application
+```
