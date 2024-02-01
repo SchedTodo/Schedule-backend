@@ -160,3 +160,5 @@ cython_debug/
 .idea/
 **/migrations/**
 **/client_secret.json
+main/settings_prod.py
+docker-compose.yml

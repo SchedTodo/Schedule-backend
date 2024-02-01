@@ -15,7 +15,7 @@ from django.core.asgi import get_asgi_application
 
 import main.routing
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings_dev')
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),

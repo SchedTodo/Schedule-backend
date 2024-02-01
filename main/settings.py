@@ -27,9 +27,6 @@ SECRET_KEY = 'django-insecure-d4-bob$=%agw$28pj28ca#q%06(x4@u-7dofl^$#76*4tc2cln
 DEBUG = True
 
 
-# TODO 使用 http, 不要在生产环境中使用这个设置
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-
 ALLOWED_HOSTS = ['*']
 
 
@@ -102,7 +99,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'postgres',
         'USER': 'postgres',
-        'PASSWORD': 'postgres',
+        'PASSWORD': '0',
         'HOST': 'localhost',
         'PORT': '3366',
     }
