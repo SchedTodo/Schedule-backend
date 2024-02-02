@@ -16,6 +16,7 @@ from main.decorators import errorHandler, checkToken
 from main.settings import BASE_DIR
 from main.consumer import send_message_to_user, Apis
 from utils.auth import getToken
+from utils.env import getHost
 from . import service
 from .models import ScheduleUser
 
@@ -29,7 +30,7 @@ def googleLogin(request):
         os.path.join(BASE_DIR, 'user/client_secret.json'),
         scopes=['openid', 'https://www.googleapis.com/auth/userinfo.email',
                 'https://www.googleapis.com/auth/userinfo.profile'],
-        redirect_uri='http://127.0.0.1:8000/user/googleCallback/',
+        redirect_uri=f'{getHost()}/user/googleCallback/',
     )
 
     # 构造认证 URL 并重定向
@@ -50,11 +51,11 @@ def googleCallback(request):
         scopes=['openid', 'https://www.googleapis.com/auth/userinfo.email',
                 'https://www.googleapis.com/auth/userinfo.profile'],
         state=state,
-        redirect_uri='http://127.0.0.1:8000/user/googleCallback/'
+        redirect_uri=f'{getHost()}/user/googleCallback/'
     )
 
     # 使用返回的授权码获取令牌
-    flow.fetch_token(authorization_response=request.get_full_path())
+    flow.fetch_token(authorization_response=request.build_absolute_uri())
 
     if not flow.credentials:
         return HttpResponse(status=401)
@@ -86,7 +87,7 @@ def googleCallback(request):
                 Apis.LOGIN,
                 {
                     'token': token,
-                    'userId': user.id,
+                    'userId': str(user.id),
                 }
             ))
     finally:
