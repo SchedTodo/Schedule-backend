@@ -6,8 +6,9 @@ app_name = 'setting'
 
 urlpatterns = [
     path('getSettings/', views.getSettings, name="getSettings"),
+    path('setSettings/', views.setSettings, name="setSettings"),
     path('getSettingByPath/', views.getSettingByPath, name="getSettingByPath"),
-    path('setSettingByPath/', views.setSettingByPath, name="setSettingByPath"),
+    # path('setSettingByPath/', views.setSettingByPath, name="setSettingByPath"),
     path('sync/', views.sync, name="sync"),
     path('getUnSynced/', views.getUnSynced, name="getUnSynced"),
 ]

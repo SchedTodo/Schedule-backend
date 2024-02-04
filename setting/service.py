@@ -1,14 +1,11 @@
-import json
 from datetime import datetime
 
 from dateutil.tz import tz
 from django.db import transaction
-from django.db.models import QuerySet
+from django_redis import get_redis_connection
 
 from main.models import Base
 from setting.models import Setting, toString, fromString
-from django_redis import get_redis_connection
-
 from utils.timeZone import isoformat
 
 # 缓存中每个设置是 str
@@ -25,6 +22,24 @@ def getSettings(userId):
     return settings
 
 
+@transaction.atomic
+def setSettings(userId, settings):
+    settingsCache = {}
+    for key, value in settings.items():
+        setting = Setting.objects.filter(user_id=userId, key=key).first()
+        if setting:
+            setting.value = toString(value)  # 接口数据存入数据库, any -> str
+            setting.updated = isoformat(datetime.now().astimezone(tz.gettz('UTC')))
+            setting.version += 1
+            setting.save()
+            settingsCache[key] = toString(value)
+
+    if len(settingsCache) > 0:
+        settingConnection.hmset(userId, settingsCache)
+
+    return None
+
+
 def getSettingByPath(userId: str, path: str):
     value = settingConnection.hget(userId, path)
     return fromString(path, value)
@@ -32,6 +47,9 @@ def getSettingByPath(userId: str, path: str):
 
 @transaction.atomic
 def setSettingByPath(userId: str, path: str, value: any):
+    """
+    @deprecated
+    """
     setting = Setting.objects.filter(user_id=userId, key=path).first()
     if setting:
         setting.value = toString(value)  # 接口数据存入数据库, any -> str

@@ -1,6 +1,7 @@
 import json
 
 from django.shortcuts import render
+
 from main.decorators import errorHandler, checkToken
 from django.views.decorators.http import require_http_methods
 from . import service
@@ -18,6 +19,15 @@ def getSettings(request, userId):
 @errorHandler
 @checkToken
 @require_http_methods(['POST'])
+def setSettings(request, userId):
+    data = json.loads(request.body)
+    settings = data['settings']
+    return service.setSettings(userId, settings)
+
+
+@errorHandler
+@checkToken
+@require_http_methods(['POST'])
 def getSettingByPath(request, userId):
     data = json.loads(request.body)
     path = data['path']
@@ -28,6 +38,9 @@ def getSettingByPath(request, userId):
 @checkToken
 @require_http_methods(['POST'])
 def setSettingByPath(request, userId):
+    """
+    @deprecated
+    """
     data = json.loads(request.body)
     path, value = data['path'], data['value']
     return service.setSettingByPath(userId, path, value)
