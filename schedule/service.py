@@ -22,7 +22,7 @@ def createSchedule(userId: str, name: str, timeCodes: str, comment: str, exTimeC
     parseRes = parseTimeCodes(timeCodes, exTimeCodes)
     eventType, rTimes, exTimes, rruleStr, code, exCode = parseRes.eventType, parseRes.rTimes, parseRes.exTimes, parseRes.rruleStr, parseRes.rTimeCodes, parseRes.exTimeCodes
 
-    schedule = Schedule(id=uuid.uuid4(), user_id=userId, type=eventType, name=name, rrules=rruleStr, rTimeCode=code,
+    schedule = Schedule(id=uuid.uuid4().hex, user_id=userId, type=eventType, name=name, rrules=rruleStr, rTimeCode=code,
                         exTimeCode=exCode, comment=comment,
                         created=isoformat(datetime.now().astimezone(tz.gettz('UTC'))),
                         updated=isoformat(datetime.now().astimezone(tz.gettz('UTC'))))
@@ -35,7 +35,7 @@ def createSchedule(userId: str, name: str, timeCodes: str, comment: str, exTimeC
 
     for key, value in allTimes.items():
         for time in value:
-            time = Time(id=uuid.uuid4(), schedule_id=schedule.id,
+            time = Time(id=uuid.uuid4().hex, schedule_id=schedule.id,
                         excluded=False if key == 'rTimes' else True,
                         start=time.start, end=time.end,
                         startMark=time.startMark,
@@ -113,7 +113,7 @@ def updateScheduleById(id: str, userId: str, name: str, timeCodes: str, comment:
                 t.save()
             # 如果没有创建过，创建新的时间片
             else:
-                t = Time(id=uuid.uuid4(), schedule_id=schedule.id,
+                t = Time(id=uuid.uuid4().hex, schedule_id=schedule.id,
                          excluded=False if key == 'rTimes' else True,
                          start=time.start, end=time.end,
                          startMark=time.startMark, endMark=time.endMark, done=False,
@@ -362,7 +362,7 @@ def updateStarById(userId: str, id: str, star: bool):
 
 
 def createRecord(scheduleId: str, userId: str, startTime: str, endTime: str):
-    record = Record(id=uuid.uuid4(), schedule_id=scheduleId,
+    record = Record(id=uuid.uuid4().hex, schedule_id=scheduleId,
                     start=startTime, end=endTime,
                     created=isoformat(datetime.now().astimezone(tz.gettz('UTC'))),
                     updated=isoformat(datetime.now().astimezone(tz.gettz('UTC'))))

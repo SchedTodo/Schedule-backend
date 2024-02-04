@@ -68,13 +68,14 @@ def googleCallback(request):
     user, created = ScheduleUser.objects.get_or_create(
         email=profile_info['email'],
         defaults={
-            'id': uuid.uuid4(),
+            'id': uuid.uuid4().hex,
             'username': profile_info['email'],
             'first_name': profile_info['given_name'],
             'last_name': profile_info['family_name'],
             'profile_image_url': profile_info['picture'],
             'locale': profile_info['locale'],
         })
+    print('user', user, created)
     token = secrets.token_hex(16)
     cache.set(token, user.id, 60 * 60 * 24 * 7)  # 保存 7 天
 
@@ -87,7 +88,7 @@ def googleCallback(request):
                 Apis.LOGIN,
                 {
                     'token': token,
-                    'userId': str(user.id),
+                    'userId': user.id,
                 }
             ))
     finally:
