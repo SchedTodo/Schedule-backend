@@ -89,7 +89,8 @@ def sync(userId, settings, syncAt):
             updated['settings'].append(setting['key'])
 
     # 更新 redis
-    settingConnection.hmset(userId, settingsCache)
+    if len(settingsCache) > 0:
+        settingConnection.hmset(userId, settingsCache)
 
     return updated
 

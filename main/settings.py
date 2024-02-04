@@ -99,7 +99,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'postgres',
         'USER': 'postgres',
-        'PASSWORD': '0',
+        'PASSWORD': 'postgres',
         'HOST': 'localhost',
         'PORT': '3366',
     }
@@ -235,6 +235,9 @@ CORS_ALLOW_HEADERS = (
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-auth-token',
+    'x-auth-user-id',
+    'x-client'
 )
 
 # 将session属性设置为 secure
