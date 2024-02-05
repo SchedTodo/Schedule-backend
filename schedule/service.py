@@ -19,7 +19,7 @@ from utils.vo import EventBriefVO, TodoBriefVO, ScheduleBriefVO
 
 @transaction.atomic
 def createSchedule(userId: str, name: str, timeCodes: str, comment: str, exTimeCodes: str):
-    parseRes = parseTimeCodes(timeCodes, exTimeCodes)
+    parseRes = parseTimeCodes(userId, timeCodes, exTimeCodes)
     eventType, rTimes, exTimes, rruleStr, code, exCode = parseRes.eventType, parseRes.rTimes, parseRes.exTimes, parseRes.rruleStr, parseRes.rTimeCodes, parseRes.exTimeCodes
 
     schedule = Schedule(id=uuid.uuid4().hex, user_id=userId, type=eventType, name=name, rrules=rruleStr, rTimeCode=code,
@@ -54,7 +54,7 @@ def updateScheduleById(id: str, userId: str, name: str, timeCodes: str, comment:
     if oldSchedule.deleted:
         raise Exception('try to update a deleted schedule')
 
-    parseRes = parseTimeCodes(timeCodes, exTimeCodes)
+    parseRes = parseTimeCodes(userId, timeCodes, exTimeCodes)
     eventType, rTimes, exTimes, rruleStr, code, exCode = parseRes.eventType, parseRes.rTimes, parseRes.exTimes, parseRes.rruleStr, parseRes.rTimeCodes, parseRes.exTimeCodes
 
     if oldSchedule.type != eventType:

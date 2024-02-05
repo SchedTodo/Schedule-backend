@@ -53,6 +53,8 @@ def fromString(path, value):
         return int(value)
     if settingsDict[path][0] == 'boolean':
         return value == 'true'
+    if type(value) is bytes:
+        return value.decode()
     return value
 
 

@@ -17,7 +17,7 @@ from utils.utils import intersection, difference
 timeZoneAbbrMap = getTimeZoneAbbrMap()
 
 
-def parseDateRange(dateRange: str, settings) -> DateRangeObject:
+def parseDateRange(userId, dateRange: str) -> DateRangeObject:
     def parseDate(date: str) -> {int | None, int | None, int | None}:
         """
         日期格式：
@@ -45,7 +45,8 @@ def parseDateRange(dateRange: str, settings) -> DateRangeObject:
         dtstart = parseDate(dateRange)
         res.dtstart = DateUnit(**dtstart)
     if res.dtstart.year is None:
-        now = datetime.now().astimezone(tz.gettz(settings['rrule.timeZone']))
+        print(getSettingByPath(userId, 'rrule.timeZone'))
+        now = datetime.now().astimezone(tz.gettz(getSettingByPath(userId, 'rrule.timeZone')))
         # 如果 dtstart 没有年份，且 dtstart < now，则 dtstart 的年份为下一年
         if (res.dtstart.month is not None and res.dtstart.month < now.month
                 and res.dtstart.day is not None and res.dtstart.day < now.day):
@@ -159,12 +160,12 @@ def parseFreq(freqCode: str) -> FreqObject:
     return res
 
 
-def getWeekdayOffset() -> int:
+def getWeekdayOffset(userId: str) -> int:
     weekdays = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
-    return weekdays.index(getSettingByPath('rrule.wkst'))
+    return weekdays.index(getSettingByPath(userId, 'rrule.wkst'))
 
 
-def parseBy(byCode: str) -> ByObject:
+def parseBy(userId, byCode: str) -> ByObject:
     bys = ['month', 'weekno', 'yearday', 'monthday', 'day', 'setpos']
     res = ByObject()
     for by in bys:
@@ -175,7 +176,7 @@ def parseBy(byCode: str) -> ByObject:
                 res.__setattr__(f'by{by}', list(map(int, value.split(','))))
             else:
                 choices = list(map(int, value.split(',')))
-                offset = getWeekdayOffset()
+                offset = getWeekdayOffset(userId)
                 byweekday = list(map(lambda choice: weekdays[choice - 1 + offset], choices))
                 if byweekday[0] is not None and len(byweekday) > 0:
                     res.byweekday = byweekday
@@ -184,13 +185,13 @@ def parseBy(byCode: str) -> ByObject:
     return res
 
 
-def dateSugar(date: str) -> str:
+def dateSugar(userId: str, date: str) -> str:
     def repl(match):
         if match.group(0) == 'tdy':
-            return datetime.now().astimezone(tz.gettz(getSettingByPath('rrule.timeZone'))).strftime('%Y/%m/%d')
+            return datetime.now().astimezone(tz.gettz(getSettingByPath(userId, 'rrule.timeZone'))).strftime('%Y/%m/%d')
         elif match.group(0) == 'tmr':
             return (datetime.now() + relativedelta(days=1)).astimezone(
-                tz.gettz(getSettingByPath('rrule.timeZone'))).strftime('%Y/%m/%d')
+                tz.gettz(getSettingByPath(userId, 'rrule.timeZone'))).strftime('%Y/%m/%d')
 
     date = re.sub(r'tdy|tmr', repl, date)
     return date
@@ -209,13 +210,13 @@ def timeSugar(time: str) -> str:
     return time
 
 
-def parseTimeCodeLex(timeCode: str) -> TimeCodeLex:
+def parseTimeCodeLex(userId: str, timeCode: str) -> TimeCodeLex:
     timeCode = timeCode.strip()
     codes = timeCode.split()  # split 默认忽略连续空格
     if 2 <= len(codes) <= 5:
         [date, time, *options] = codes
 
-        date = dateSugar(date)
+        date = dateSugar(userId, date)
         time = timeSugar(time)
 
         freq = ['daily', 'weekly', 'monthly', 'yearly']
@@ -224,7 +225,7 @@ def parseTimeCodeLex(timeCode: str) -> TimeCodeLex:
             'freq': 0,
             'by': 0,
         }
-        timeZone = getSettingByPath('rrule.timeZone')
+        timeZone = getSettingByPath(userId, 'rrule.timeZone')
         freqCode: str | None = None
         byCode: str | None = None
         while len(options) > 0:
@@ -260,7 +261,7 @@ def parseTimeCodeLex(timeCode: str) -> TimeCodeLex:
         newTimeCode = f'{date} {time} {timeZone}{f" {freqCode}" if freqCode is not None else ""}{f" {byCode}" if byCode is not None else ""}'
 
         # 开始解析每个部分
-        dateRangeObj = parseDateRange(date)
+        dateRangeObj = parseDateRange(userId, date)
         timeRangeObj = parseTimeRange(time)
         eventType = EventType.EVENT
         if timeRangeObj.start is None:
@@ -271,8 +272,8 @@ def parseTimeCodeLex(timeCode: str) -> TimeCodeLex:
         raise ValueError('time code error')
 
 
-def getWKST() -> weekday:
-    weekStart = getSettingByPath('rrule.wkst')
+def getWKST(userId: str) -> weekday:
+    weekStart = getSettingByPath(userId, 'rrule.wkst')
     if weekStart == 'MO':
         return MO
     elif weekStart == 'TU':
@@ -292,6 +293,7 @@ def getWKST() -> weekday:
 
 
 def parseTimeCodeSem(
+        userId: str,
         dateRangeObj: DateRangeObject,
         timeRangeObj: TimeRangeObject,
         timeZone: str,
@@ -315,10 +317,10 @@ def parseTimeCodeSem(
         freqObj = parseFreq(freqCode)
         rruleConfig = {**rruleConfig, **freqObj.__dict__}
     if byCode is not None and dateRangeObj.until is not None:
-        byObj = parseBy(byCode)
+        byObj = parseBy(userId, byCode)
         rruleConfig = {**rruleConfig, **byObj.__dict__}
     # wkst
-    rruleConfig['wkst'] = getWKST()
+    rruleConfig['wkst'] = getWKST(userId)
 
     # rrule
     rrule = dateutil.rrule.rrule(**rruleConfig)
@@ -350,7 +352,7 @@ def parseTimeCodeSem(
     return TimeCodeSem(times=times, rruleObject=rrule)
 
 
-def timeCodeParser(timeCode: str) -> TimeCodeParseResult:
+def timeCodeParser(userId, timeCode: str) -> TimeCodeParseResult:
     timeCode = timeCode.strip()
     # 去除 \n \t \r 等符号
     timeCode = re.sub(r'\n\t\r', '', timeCode)
@@ -363,23 +365,23 @@ def timeCodeParser(timeCode: str) -> TimeCodeParseResult:
     for line in lines:
         if len(line) == 0:
             continue
-        timeCodeLex = parseTimeCodeLex(line)
+        timeCodeLex = parseTimeCodeLex(userId, line)
 
         if eventType is not None and eventType != timeCodeLex.eventType:
             raise ValueError('The event type of each line must be the same')
         eventType = timeCodeLex.eventType
         newTimeCodes.append(timeCodeLex.newTimeCode)
-        timeCodeSem = parseTimeCodeSem(timeCodeLex.dateRangeObject, timeCodeLex.timeRangeObject, timeCodeLex.timeZone,
-                                       timeCodeLex.freqCode, timeCodeLex.byCode)
+        timeCodeSem = parseTimeCodeSem(userId, timeCodeLex.dateRangeObject, timeCodeLex.timeRangeObject,
+                                       timeCodeLex.timeZone, timeCodeLex.freqCode, timeCodeLex.byCode)
         times.extend(timeCodeSem.times)
         rruleObjects.append(timeCodeSem.rruleObject)
 
     return TimeCodeParseResult(eventType, times, rruleObjects, newTimeCodes)
 
 
-def parseTimeCodes(rTimeCodes: str, exTimeCodes: str) -> TimeCodeDao:
-    rTimeCodeParseResult = timeCodeParser(rTimeCodes)
-    exTimeCodeParseResult = timeCodeParser(exTimeCodes)
+def parseTimeCodes(userId: str, rTimeCodes: str, exTimeCodes: str) -> TimeCodeDao:
+    rTimeCodeParseResult = timeCodeParser(userId, rTimeCodes)
+    exTimeCodeParseResult = timeCodeParser(userId, exTimeCodes)
 
     if exTimeCodeParseResult.eventType is not None and rTimeCodeParseResult.eventType != exTimeCodeParseResult.eventType:
         raise ValueError('The event type of each line must be the same')
@@ -399,8 +401,3 @@ def parseTimeCodes(rTimeCodes: str, exTimeCodes: str) -> TimeCodeDao:
         rTimeCodes=';'.join(rTimeCodeParseResult.newTimeCodes),
         exTimeCodes=';'.join(exTimeCodeParseResult.newTimeCodes)
     )
-
-
-if __name__ == '__main__':
-    s = 'tdy 123242 tdy'
-    print(dateSugar(s))
