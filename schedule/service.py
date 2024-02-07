@@ -245,7 +245,10 @@ def deleteScheduleById(id: str, userId: str):
 
 @transaction.atomic
 def deleteTimeById(userId: str, id: str):
-    time = Time.objects.get(schedule__user_id=userId, id=id).update(excluded=True)
+    time = Time.objects.get(schedule__user_id=userId, id=id)
+    time.excluded = True
+    time.updated = isoformat(datetime.now().astimezone(tz.gettz('UTC')))
+    time.save()
 
     startTime: datetime
     endTime = datetime.fromisoformat(time.end).astimezone(tz.gettz('UTC'))
