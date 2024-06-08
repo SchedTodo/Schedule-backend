@@ -73,7 +73,7 @@ def googleCallback(request):
             'first_name': profile_info['given_name'],
             'last_name': profile_info['family_name'],
             'profile_image_url': profile_info['picture'],
-            'locale': profile_info['locale'],
+            'locale': None, # 2024.6.7 profile_info['locale'] seems not provided by google
         })
     print('user', user, created)
     token = secrets.token_hex(16)
