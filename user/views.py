@@ -16,7 +16,7 @@ from main.decorators import errorHandler, checkToken
 from main.settings import BASE_DIR
 from main.consumer import send_message_to_user, Apis
 from utils.auth import getToken
-from utils.env import getHost
+from utils.env import getHost, isDev
 from . import service
 from .models import ScheduleUser
 
@@ -54,9 +54,10 @@ def googleCallback(request):
         redirect_uri=f'{getHost()}/user/googleCallback/'
     )
 
-    print(request.build_absolute_uri())
+    # 在 Docker 中，Google OAuth2.0 回调地址是 http，需要转换为 https
+    abspath = request.build_absolute_uri().replace('http://', 'https://') if isDev() else request.build_absolute_uri()
     # 使用返回的授权码获取令牌
-    flow.fetch_token(authorization_response=request.build_absolute_uri())
+    flow.fetch_token(authorization_response=abspath)
 
     if not flow.credentials:
         return HttpResponse(status=401)
