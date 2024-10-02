@@ -56,6 +56,7 @@ def googleCallback(request):
 
     # 在 Docker 中，Google OAuth2.0 回调地址是 http，需要转换为 https
     abspath = request.build_absolute_uri().replace('http://', 'https://') if isDev() else request.build_absolute_uri()
+    raise Exception(abspath)
     # 使用返回的授权码获取令牌
     flow.fetch_token(authorization_response=abspath)
 
