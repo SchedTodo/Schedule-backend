@@ -54,6 +54,7 @@ def googleCallback(request):
         redirect_uri=f'{getHost()}/user/googleCallback/'
     )
 
+    print(request.build_absolute_uri())
     # 使用返回的授权码获取令牌
     flow.fetch_token(authorization_response=request.build_absolute_uri())
 
