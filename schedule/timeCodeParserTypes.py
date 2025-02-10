@@ -32,9 +32,10 @@ class DateRangeObject:
     dtstart: DateUnit
     until: DateUnit | None
 
-    def __init__(self, dtstart: DateUnit = DateUnit(), until: DateUnit | None = None):
+    def __init__(self, dtstart: DateUnit = DateUnit(), until: DateUnit | None = None, value: str = ''):
         self.dtstart = dtstart
         self.until = until
+        self.value = value
 
     def __eq__(self, other):
         if not isinstance(other, DateRangeObject):

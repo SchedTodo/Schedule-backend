@@ -55,6 +55,9 @@ def parseDateRange(userId, dateRange: str) -> DateRangeObject:
             res.dtstart.year = now.year
         if res.until is not None and res.until.year is None:
             res.until.year = res.dtstart.year
+    res.value = f'{res.dtstart.year}/{res.dtstart.month}/{res.dtstart.day}'
+    if res.until is not None:
+        res.value += f'-{res.until.year}/{res.until.month}/{res.until.day}'
     return res
 
 
